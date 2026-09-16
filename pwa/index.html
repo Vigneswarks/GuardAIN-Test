@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f172a" />
+    <title>GuardAIN Mobile Triage</title>
+    <link rel="manifest" href="./manifest.json" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body { background: linear-gradient(135deg, #020817, #111827 42%, #0f172a); }
+      .glass { background: rgba(15, 23, 42, 0.72); border: 1px solid rgba(148, 163, 184, 0.25); }
+      .risk-meter { height: 12px; background: rgba(15, 23, 42, 0.8); border-radius: 9999px; overflow: hidden; }
+      .risk-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #22c55e, #f59e0b, #ef4444); transition: width 0.25s ease; }
+    </style>
+  </head>
+  <body class="min-h-screen text-slate-100 antialiased">
+    <div class="mx-auto max-w-5xl p-4 md:p-8">
+      <header class="mb-6 flex items-center justify-between rounded-2xl border border-slate-700 bg-slate-900/70 px-4 py-3 shadow-lg shadow-slate-950/40">
+        <div>
+          <p class="text-xs uppercase tracking-[0.3em] text-cyan-400">GuardAIN</p>
+          <h1 class="text-2xl font-semibold">Fraud Triage Console</h1>
+        </div>
+        <div class="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300">Secure</div>
+      </header>
+
+      <main class="grid gap-6 md:grid-cols-[1.2fr_0.8fr]">
+        <section class="glass rounded-3xl p-4 shadow-2xl shadow-black/20">
+          <div class="mb-4 flex gap-2 rounded-xl bg-slate-800/80 p-1">
+            <button data-tab="chat" class="tab-btn flex-1 rounded-xl bg-cyan-500/20 px-3 py-2 text-sm font-medium text-cyan-300">Chat / Text Triage</button>
+            <button data-tab="vpa" class="tab-btn flex-1 rounded-xl px-3 py-2 text-sm font-medium text-slate-300">VPA</button>
+            <button data-tab="url" class="tab-btn flex-1 rounded-xl px-3 py-2 text-sm font-medium text-slate-300">URL</button>
+            <button data-tab="apk" class="tab-btn flex-1 rounded-xl px-3 py-2 text-sm font-medium text-slate-300">APK</button>
+          </div>
+
+          <div id="tab-chat" class="tab-panel space-y-4">
+            <label class="block text-sm font-medium text-slate-200">Message or chat content</label>
+            <textarea id="textContent" rows="7" class="w-full rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-sm text-slate-100 focus:border-cyan-400 focus:outline-none" placeholder="Type a WhatsApp/Telegram text or paste a suspicious message...">Your electricity bill is due and the power line will be disconnected today. Verify your account immediately.</textarea>
+            <div class="rounded-xl border border-slate-700 bg-slate-900/60 p-3 text-xs text-slate-300">
+              Client-side PII scrubber: <span class="font-mono text-cyan-300">+91 9876543210</span>, <span class="font-mono text-cyan-300">123456789012</span>, <span class="font-mono text-cyan-300">1234567890123456</span> become <span class="font-mono text-cyan-300">[REDACTED]</span>
+            </div>
+            <div class="flex flex-wrap gap-3">
+              <button id="verifyBtn" class="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:bg-cyan-400">Verify Threat</button>
+              <button id="demoBtn" class="rounded-xl border border-slate-600 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-100 hover:border-slate-500">Load Demo Scam</button>
+            </div>
+          </div>
+
+          <div id="tab-vpa" class="tab-panel hidden space-y-4">
+            <div>
+              <label class="mb-2 block text-sm font-medium text-slate-200">UPI / VPA handle</label>
+              <input id="vpaHandle" type="text" class="w-full rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-sm text-slate-100 focus:border-cyan-400 focus:outline-none" placeholder="name@upi" />
+            </div>
+            <div>
+              <label class="mb-2 block text-sm font-medium text-slate-200">Domain or URL</label>
+              <input id="domain" type="text" class="w-full rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-sm text-slate-100 focus:border-cyan-400 focus:outline-none" placeholder="verify-kyc.in" />
+            </div>
+            <button id="inspectBtn" class="rounded-xl bg-violet-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-violet-500/20 transition hover:bg-violet-400">Inspect VPA</button>
+          </div>
+
+          <div id="tab-url" class="tab-panel hidden space-y-4">
+            <label class="block text-sm font-medium text-slate-200">URL or domain</label>
+            <input id="urlInput" type="url" class="w-full rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-sm" placeholder="https://verify-kyc.example" />
+            <button id="urlBtn" class="rounded-xl bg-violet-500 px-4 py-2 text-sm font-semibold text-white">Analyze URL</button>
+          </div>
+
+          <div id="tab-apk" class="tab-panel hidden space-y-4">
+            <label class="block text-sm font-medium text-slate-200">APK SHA-256 (optional)</label>
+            <input id="apkHash" pattern="[A-Fa-f0-9]{64}" class="w-full rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-sm" placeholder="64-character SHA-256" />
+            <label class="block text-sm font-medium text-slate-200">Package name</label>
+            <input id="apkPackage" class="w-full rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-sm" placeholder="com.example.app" />
+            <label class="block text-sm font-medium text-slate-200">Permissions (one per line)</label>
+            <textarea id="apkPermissions" rows="3" class="w-full rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-sm" placeholder="android.permission.READ_SMS"></textarea>
+            <button id="apkBtn" class="rounded-xl bg-violet-500 px-4 py-2 text-sm font-semibold text-white">Analyze APK</button>
+          </div>
+        </section>
+
+        <aside class="glass rounded-3xl p-4 shadow-2xl shadow-black/20">
+          <div class="mb-4 flex items-center justify-between">
+            <h2 class="text-lg font-semibold text-slate-100">Risk Score</h2>
+            <span id="statusBadge" class="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-300">ALLOW</span>
+          </div>
+
+          <div class="risk-meter mb-3">
+            <div id="riskFill" class="risk-fill"></div>
+          </div>
+
+          <div class="mb-4 flex justify-between text-xs text-slate-400">
+            <span>0.0</span>
+            <span id="threatValue">0.00</span>
+            <span>1.0</span>
+          </div>
+
+          <div class="rounded-2xl border border-slate-700 bg-slate-950/60 p-3">
+            <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Reason</p>
+            <p id="reasonText" class="mt-2 text-sm text-slate-200">No request yet.</p>
+          </div>
+
+          <div class="mt-4 rounded-2xl border border-slate-700 bg-slate-950/60 p-3">
+            <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Execution time</p>
+            <p id="executionTime" class="mt-2 text-lg font-semibold text-cyan-300">0.00 ms</p>
+          </div>
+
+          <div class="mt-4 rounded-2xl border border-slate-700 bg-slate-950/60 p-3">
+            <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Scrubbed Preview</p>
+            <p id="scrubbedPreview" class="mt-2 break-words text-xs text-slate-300">Waiting for input...</p>
+          </div>
+        </aside>
+      </main>
+    </div>
+
+    <script>
+      const API_URL = `${window.GUARDAIN_API_URL || localStorage.getItem('guardainApiUrl') || 'http://127.0.0.1:8080'}/v1/verify`;
+
+      function scrubPII(value) {
+        const text = String(value || '');
+        return text
+          .replace(/\+?91\s?[6-9]\d{9}/g, '[REDACTED]')
+          .replace(/\b\d{12}\b/g, '[REDACTED]')
+          .replace(/\b\d{16}\b/g, '[REDACTED]')
+          .replace(/\b(?:\d{4}\s?){3}\d{4}\b/g, '[REDACTED]')
+          .replace(/\b(?:acc(?:ount)?|a\/c|acct)[\s:=-]*\d{8,20}\b/gi, '[REDACTED]');
+      }
+
+      function updateRisk(score) {
+        const normalized = Math.max(0, Math.min(1, Number(score) || 0));
+        const fill = document.getElementById('riskFill');
+        const badge = document.getElementById('statusBadge');
+        fill.style.width = `${normalized * 100}%`;
+        document.getElementById('threatValue').textContent = normalized.toFixed(2);
+
+        if (normalized >= 0.75) {
+          badge.textContent = 'BLOCK';
+          badge.className = 'rounded-full border border-red-500/40 bg-red-500/10 px-2 py-1 text-xs font-semibold text-red-300';
+        } else if (normalized >= 0.45) {
+          badge.textContent = 'REVIEW';
+          badge.className = 'rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-xs font-semibold text-amber-300';
+        } else {
+          badge.textContent = 'ALLOW';
+          badge.className = 'rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-300';
+        }
+      }
+
+      async function verifyRequest(payload) {
+        const started = performance.now();
+        try {
+          const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Origin': 'http://127.0.0.1:3000'
+            },
+            body: JSON.stringify(payload)
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          async function analyzer(path, payload) {
+            const started = performance.now();
+            try {
+              const response = await fetch(`${API_URL.replace('/v1/verify', '')}${path}`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+              });
+              if (!response.ok) throw new Error(`HTTP ${response.status}`);
+              const data = await response.json();
+              updateRisk(data.threat_score);
+              document.getElementById('reasonText').textContent = (data.reasons || []).join(', ') || data.action || 'No suspicious indicators';
+              document.getElementById('executionTime').textContent = `${(performance.now() - started).toFixed(2)} ms`;
+              return data;
+            } catch (error) {
+              document.getElementById('reasonText').textContent = `Analysis failed: ${error.message}`;
+              return null;
+            }
+          }
+
+          const data = await response.json();
+          const elapsed = performance.now() - started;
+          updateRisk(data.threat_score);
+          document.getElementById('reasonText').textContent = data.reason || 'No risk signal found.';
+          document.getElementById('executionTime').textContent = `${(data.execution_time_ms || elapsed).toFixed(2)} ms`;
+          return data;
+        } catch (error) {
+          const elapsed = performance.now() - started;
+          updateRisk(0.0);
+          document.getElementById('reasonText').textContent = `Verification failed: ${error.message}`;
+          document.getElementById('executionTime').textContent = `${elapsed.toFixed(2)} ms`;
+          return null;
+        }
+      }
+
+      function bindTabs() {
+        document.querySelectorAll('.tab-btn').forEach((button) => {
+          button.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach((btn) => {
+              btn.classList.remove('bg-cyan-500/20', 'text-cyan-300');
+              btn.classList.add('text-slate-300');
+            });
+            document.querySelectorAll('.tab-panel').forEach((panel) => panel.classList.add('hidden'));
+            button.classList.add('bg-cyan-500/20', 'text-cyan-300');
+            document.getElementById(`tab-${button.dataset.tab}`).classList.remove('hidden');
+          });
+        });
+      }
+
+      function loadDemo() {
+        document.getElementById('textContent').value = 'Aapka electricity line is being disconnected today. Verify your bank account and pay immediately. +91 9876543210';
+      }
+
+      document.getElementById('verifyBtn').addEventListener('click', async () => {
+        const text = document.getElementById('textContent').value;
+        const scrubbed = scrubPII(text);
+        document.getElementById('scrubbedPreview').textContent = scrubbed.slice(0, 220) || 'No text provided';
+        const result = await verifyRequest({ text_content: scrubbed, vpa_handle: '', domain: '' });
+        if (result) {
+          document.getElementById('reasonText').textContent = result.reason;
+        }
+      });
+
+      document.getElementById('inspectBtn').addEventListener('click', async () => {
+        const vpa = scrubPII(document.getElementById('vpaHandle').value || '');
+        const domain = scrubPII(document.getElementById('domain').value || '');
+        const result = await analyzer('/v1/analyzer/vpa', { vpa, context: domain });
+        if (result) {
+          document.getElementById('scrubbedPreview').textContent = `VPA: ${vpa || 'N/A'} | Provider: ${result.provider || 'N/A'}`;
+        }
+      });
+
+      document.getElementById('urlBtn').addEventListener('click', async () => {
+        const url = document.getElementById('urlInput').value.trim();
+        const result = await analyzer('/v1/analyzer/url', { url });
+        if (result) document.getElementById('scrubbedPreview').textContent = `${result.domain} | entropy ${result.entropy}`;
+      });
+
+      document.getElementById('apkBtn').addEventListener('click', async () => {
+        const permissions = document.getElementById('apkPermissions').value.split(/\r?\n/).map(item => item.trim()).filter(Boolean);
+        await analyzer('/v1/analyzer/apk', {
+          sha256: document.getElementById('apkHash').value.trim() || null,
+          package_name: document.getElementById('apkPackage').value.trim() || null, permissions
+        });
+      });
+
+      document.getElementById('demoBtn').addEventListener('click', loadDemo);
+      bindTabs();
+      registerServiceWorker();
+
+      async function registerServiceWorker() {
+        if ('serviceWorker' in navigator) {
+          try {
+            await navigator.serviceWorker.register('./sw.js');
+          } catch (error) {
+            console.warn('Service worker registration failed', error);
+          }
+        }
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "name": "GuardAIN Mobile Triage",
+  "short_name": "GuardAIN",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#020817",
+  "theme_color": "#0f172a",
+  "description": "Offline-capable mobile console for cyber-fraud triage."
+}
