@@ -76,7 +76,7 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("GUARDAIN_ADMIN_USERNAME", "ADMIN_USERNAME"),
     )
     admin_password: str = Field(
-        default="",
+        default="admin@26",
         validation_alias=AliasChoices("GUARDAIN_ADMIN_PASSWORD", "ADMIN_PASSWORD"),
     )
     max_incidents: int = 500

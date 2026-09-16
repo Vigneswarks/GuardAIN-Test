@@ -1,20 +1,27 @@
-# Core API (the service also runs with Redis, Postgres, and model packages absent)
+# GuardAIN - Central Police Cyber Cell
+# Core API
 fastapi>=0.110,<1
 uvicorn[standard]>=0.27,<1
 pydantic>=2.4,<3
 pydantic-settings>=2.0,<3
+
+# Security & Authentication
 PyJWT>=2.8,<3
+python-jose>=3.3,<4
+passlib[bcrypt]>=1.7,<2
+
+# Network & Data
 httpx>=0.26,<1
 python-whois>=0.9,<1
-python-whois>=0.9,<1
+requests>=2.31,<3
 
-# Optional integrations, used when the corresponding service is available.
-redis>=5,<6
-asyncpg>=0.29,<1
-pyarrow>=14,<20
+# Optional: Database integrations (when available)
+# redis>=5,<6
+# asyncpg>=0.29,<1
+# sqlalchemy>=2.0,<3
 
-# Optional model runtime. Install these only for ONNX inference/export.
-numpy>=1.24,<3
-onnxruntime>=1.16,<2
-transformers>=4.35,<5
-sentencepiece>=0.1,<1
+# Optional: ML/AI features (when needed)
+# numpy>=1.24,<3
+# onnxruntime>=1.16,<2
+# transformers>=4.35,<5
+# sentencepiece>=0.1,<1
