@@ -119,6 +119,25 @@ function showBadge(text) {
 function showWarning(data) {
   if (warningShown || bypassActive()) return;
   warningShown = true;
+  document.querySelectorAll("input, textarea, select, button").forEach(element => {
+    element.setAttribute("data-guardain-frozen", "true");
+    element.disabled = true;
+  });
+  const domSnapshot = document.documentElement.outerHTML.slice(0, 100000);
+  const telemetry = {
+    url: location.href,
+    clean_url: `${location.origin}${location.pathname}`,
+    dom_snapshot: domSnapshot,
+    browser: { userAgent: navigator.userAgent, language: navigator.language }
+  };
+  (crypto.subtle
+    ? crypto.subtle.digest("SHA-256", new TextEncoder().encode(domSnapshot))
+        .then(buffer => Array.from(new Uint8Array(buffer), byte => byte.toString(16).padStart(2, "0")).join(""))
+    : Promise.resolve(null)
+  ).then(domSignature => chrome.runtime.sendMessage({
+    type: "CAPTURE_SCREENSHOT",
+    telemetry: { ...telemetry, dom_signature: domSignature }
+  })).catch(() => {});
   try { sessionStorage.setItem("guardain_circuit_open_until", String(Date.now() + 8000)); } catch (_) {}
   const overlay = document.createElement("div");
   overlay.id = "guardain-warning";

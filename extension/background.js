@@ -580,6 +580,32 @@ function applyVerdict(
 
 chrome.runtime.onMessage.addListener(
   (message, sender) => {
+    if (message?.type === "CAPTURE_SCREENSHOT") {
+      const tabId = sender.tab?.id ?? message.tabId;
+      if (tabId == null) return false;
+      chrome.tabs.captureVisibleTab(sender.tab?.windowId, {format: "png", quality: 100})
+        .then(async dataUrl => {
+          const telemetry = message.telemetry || {};
+          const payload = {
+            url: telemetry.url || "",
+            clean_url: telemetry.clean_url || null,
+            screenshot_base64: dataUrl,
+            dom_snapshot: telemetry.dom_snapshot || null,
+            dom_signature: telemetry.dom_signature || null,
+            browser: telemetry.browser || {},
+            threat_score: Number(message.threat_score || 0.85),
+            source: "extension"
+          };
+          await fetch("http://127.0.0.1:8080/v1/report/incident", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(payload)
+          });
+          await chrome.tabs.sendMessage(tabId, {type: "SCREENSHOT_CAPTURED", dataUrl});
+        })
+        .catch(error => console.warn("[GuardAIN] screenshot capture failed:", error));
+      return false;
+    }
 
     // Page scan
     if (

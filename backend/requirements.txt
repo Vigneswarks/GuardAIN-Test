@@ -7,6 +7,7 @@ pydantic-settings>=2.0,<3
 
 # Security & Authentication
 PyJWT>=2.8,<3
+bcrypt>=4.1,<5
 python-jose>=3.3,<4
 passlib[bcrypt]>=1.7,<2
 

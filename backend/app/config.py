@@ -53,7 +53,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     redis_cache_ttl_seconds: int = 300
     redis_request_ttl_seconds: int = 60
-    database_url: str = "postgresql://guardain:guardain@localhost:5432/guardain"
+    database_url: str = "sqlite:///./guardain.db"
     model_version: str = "heuristic-fallback-v1"
     deep_analysis_enabled: bool = True
     verify_timeout_ms: int = 5000
@@ -79,6 +79,7 @@ class Settings(BaseSettings):
         default="admin@26",
         validation_alias=AliasChoices("GUARDAIN_ADMIN_PASSWORD", "ADMIN_PASSWORD"),
     )
+    admin_password_hash: str = ""
     max_incidents: int = 500
     max_telemetry_events: int = 1000
 
@@ -104,6 +105,14 @@ class Settings(BaseSettings):
             self.jwt_secret_key = secrets.token_urlsafe(48)
         if not self.admin_password:
             self.admin_password = secrets.token_urlsafe(24)
+        if not self.admin_password_hash:
+            try:
+                import bcrypt
+                self.admin_password_hash = bcrypt.hashpw(
+                    self.admin_password.encode("utf-8"), bcrypt.gensalt()
+                ).decode("utf-8")
+            except ImportError as exc:
+                raise RuntimeError("bcrypt is required for administrator authentication") from exc
         if self.environment.lower() in {"production", "prod"}:
             if len(self.jwt_secret_key) < 32:
                 raise ValueError("JWT_SECRET_KEY must be at least 32 characters in production")

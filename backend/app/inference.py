@@ -88,6 +88,8 @@ class MuRILInferenceService:
             "label": "fraud" if score >= 0.5 else "benign",
             "risk_level": risk,
             "matched_categories": categories,
+            "coercion_category": categories[0] if categories else None,
+            "key_trigger_words": [term for terms in indicators.values() for term in terms if term in lower],
             "engine": "heuristic-fallback",
         }
 
@@ -123,7 +125,8 @@ class MuRILInferenceService:
             score = min(1.0, max(0.0, score))
             risk = "critical" if score >= 0.8 else "high" if score >= 0.6 else "medium" if score >= 0.35 else "low"
             return {"score": round(score, 4), "label": "fraud" if score >= 0.5 else "benign",
-                    "risk_level": risk, "matched_categories": [], "engine": "muril-onnx"}
+                    "risk_level": risk, "matched_categories": [], "coercion_category": None,
+                    "key_trigger_words": [], "engine": "muril-onnx"}
         except Exception:
             return self._fallback_score(payload)
 
