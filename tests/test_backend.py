@@ -59,6 +59,22 @@ def test_health_and_static_clients() -> None:
         assert client.get("/demo/not-a-demo").status_code == 404
 
 
+def test_extension_origin_is_allowed_but_random_web_origin_is_not() -> None:
+    with TestClient(app) as client:
+        origin = "chrome-extension://abcdefghijklmnopabcdefghijklmnop"
+        extension_preflight = client.options(
+            "/v1/page-check",
+            headers={"Origin": origin, "Access-Control-Request-Method": "POST"},
+        )
+        assert extension_preflight.status_code == 200
+        assert extension_preflight.headers["access-control-allow-origin"] == origin
+        random_web_preflight = client.options(
+            "/v1/page-check",
+            headers={"Origin": "https://untrusted.example", "Access-Control-Request-Method": "POST"},
+        )
+        assert random_web_preflight.status_code == 400
+
+
 def test_verify_safe_and_scam_messages() -> None:
     with TestClient(app) as client:
         safe = client.post("/v1/verify", json={"message": "hello", "url": "https://google.com"})

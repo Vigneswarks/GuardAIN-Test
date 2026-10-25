@@ -11,14 +11,15 @@ credential collection, or public victim data.
 2. Confirm `http://127.0.0.1:8080/health` reports `status: online` and
    `database: true`.
 3. Load/reload the Chrome extension from the `extension` folder.
-4. In the extension popup enter `http://127.0.0.1:8080` and select **Save and
-   test connection**. The setting persists in Chrome storage.
+4. The extension automatically uses `https://guardain-api.onrender.com`.
+   Open its popup and confirm **Connected**; no endpoint needs to be typed on
+   another laptop.
 5. Keep the test tab focused. Screenshot capture is intentionally limited to
    the visible warning tab.
 
 ## Demonstration sequence
 
-| Stage | Local URL | Expected GuardAIN behavior | What it proves |
+| Stage | URL path | Expected GuardAIN behavior | What it proves |
 |---|---|---|---|
 | 1 | `/demo/awareness` | No overlay, close, or incident | Fraud words alone never cause blocking |
 | 2 | `/demo/normal-login` | No overlay or high-risk incident | A normal same-origin login is not treated as fraud |
@@ -29,7 +30,7 @@ credential collection, or public victim data.
 For example, stage 4 is:
 
 ```text
-http://127.0.0.1:8080/demo/extension-test
+https://guardain-api.onrender.com/demo/extension-test
 ```
 
 Replace the path for each stage in the table. Do not click **Proceed anyway**

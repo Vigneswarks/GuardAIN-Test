@@ -24,7 +24,15 @@ async function reportWarning(message, sender, captured = () => {}) {
     client_report_id: crypto.randomUUID(), url: `https://${host}/`,
     threat_score: verdict.threat_score, source: 'extension',
     browser: {evidence_status: 'metadata_only'},
-    dom_snapshot: JSON.stringify({reasons: verdict.reasons})
+    dom_snapshot: JSON.stringify({reasons: verdict.reasons}),
+    // Send policy labels only. Raw page text, form values, paths and queries
+    // stay on the laptop.
+    analysis: {
+      engine: verdict.tier || 'corroborated-page-policy',
+      action: verdict.risk_level === 'high_risk' ? 'BLOCK' : 'REVIEW',
+      key_trigger_words: Array.isArray(verdict.reasons) ? verdict.reasons : [],
+      risk_level: verdict.risk_level || 'unknown'
+    }
   };
   // Chrome captures the visible tab, not an arbitrary tab ID. Check both
   // sides of capture and discard evidence if focus/navigation changed.
@@ -97,9 +105,9 @@ async function migrateCentralEndpoint() {
     guardainApiBaseUrl: "",
     guardainApiConfigured: false,
   });
-  // Migrate only the earlier implicit localhost default. A URL saved by an
-  // operator remains untouched.
-  if (!stored.guardainApiConfigured && (!stored.guardainApiBaseUrl || stored.guardainApiBaseUrl === LEGACY_LOCAL_API_BASE)) {
+  // Upgrade the retired local default even if an older popup marked it as
+  // configured. Deliberate custom HTTPS/LAN endpoints remain untouched.
+  if (!stored.guardainApiBaseUrl || stored.guardainApiBaseUrl === LEGACY_LOCAL_API_BASE) {
     await chrome.storage.local.set({ guardainApiBaseUrl: DEFAULT_API_BASE });
   }
 }

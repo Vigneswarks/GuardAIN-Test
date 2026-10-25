@@ -38,8 +38,17 @@ except ImportError:  # pragma: no cover
     redis = None
 
 app = FastAPI(title="GuardAIN Central Admin API", version="2.0.0")
-app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins, allow_credentials=True,
-                   allow_methods=["*"], allow_headers=["*"])
+# Portal origins are explicitly configured. Chrome extension IDs are generated
+# per profile, so the narrow extension-scheme pattern permits an installed
+# GuardAIN client on another laptop without opening CORS to ordinary websites.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_origin_regex=r"chrome-extension://[a-p]{32}",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 _rate_windows: dict[str, list[float]] = defaultdict(list)
 
 @app.middleware("http")

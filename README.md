@@ -69,11 +69,14 @@ extension and the administrator domain-intelligence view.
 2. Enable Developer mode.
 3. Choose **Load unpacked**.
 4. Select the [extension/](./extension) directory.
-5. Set the cloud API URL:
+5. It automatically uses the production central API:
 
-```javascript
-chrome.storage.local.set({ guardainApiBaseUrl: "https://api.example.com" });
+```text
+https://guardain-api.onrender.com
 ```
+
+No setup is needed on another laptop after loading the extension. Change this
+only when deliberately testing against a local/private API.
 
 The extension bypasses Google, Bing, DuckDuckGo, verified news portals,
 `.gov.in`, and `.nic.in`. It scans only interactive scopes, honors
