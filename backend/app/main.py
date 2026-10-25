@@ -280,7 +280,8 @@ async def connect_services() -> None:
         if not db_ready:
             if production:
                 raise RuntimeError(
-                    f"GuardAIN PostgreSQL is required in production; connection failed after {attempts} attempts"
+                    "GuardAIN PostgreSQL is required in production; "
+                    f"connection failed after {attempts} attempts: {last_db_error}"
                 ) from last_db_error
             print(f"GuardAIN database unavailable; using memory fallback: {last_db_error}")
     if db_pool is None and repository.sqlite_path is not None:
