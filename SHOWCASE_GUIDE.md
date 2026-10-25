@@ -14,7 +14,11 @@ credential collection, or public victim data.
 4. The extension automatically uses `https://guardain-api.onrender.com`.
    Open its popup and confirm **Connected**; no endpoint needs to be typed on
    another laptop.
-5. Keep the test tab focused. Screenshot capture is intentionally limited to
+5. For a local `file:///.../demo-scam-test.html` test, open the GuardAIN
+   extension's **Details** page and enable **Allow access to file URLs**. This
+   is a Chrome permission that an extension cannot enable by itself. Otherwise
+   use the hosted test URL below.
+6. Keep the test tab focused. Screenshot capture is intentionally limited to
    the visible warning tab.
 
 ## Demonstration sequence
@@ -36,6 +40,10 @@ https://guardain-api.onrender.com/demo/extension-test
 Replace the path for each stage in the table. Do not click **Proceed anyway**
 on the two high-risk pages; it is the operator/user override and cancels the
 circuit breaker by design.
+
+Use the hosted PWA at `https://guardain-api.onrender.com/pwa/` for the demo.
+Do not double-click `pwa/index.html`: browsers give local files an opaque
+origin, which the cloud API intentionally does not trust.
 
 ## Portal portion
 
@@ -89,6 +97,7 @@ for review/block-level fraud signals.
 | Popup says connection failed | Keep the API terminal running; open `/health` directly |
 | Page says safe-domain bypass | Do not test on Google, Bing, government, or configured news domains |
 | No warning on a high-risk demo | Reload the extension, refresh the test tab, and ensure Page protection is enabled |
+| Demo opened as a local file has no extension warning | Enable **Allow access to file URLs** in the extension Details page, or use the hosted `/demo/extension-test` URL |
 | No portal incident | Keep the high-risk tab active until the warning appears; wait ten seconds and refresh the portal |
 | PWA says central delivery failed | Start the API, refresh the PWA, and confirm its header says **Central server connected** |
 | Screenshot missing | The page can still report metadata. Ensure the high-risk tab stayed visible during the warning |

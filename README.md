@@ -78,6 +78,11 @@ https://guardain-api.onrender.com
 No setup is needed on another laptop after loading the extension. Change this
 only when deliberately testing against a local/private API.
 
+For a double-clicked local `file:///...` demo fixture, Chrome also requires
+**Extensions → GuardAIN Details → Allow access to file URLs**. This is a
+browser-controlled permission. The recommended no-setup test is
+`https://guardain-api.onrender.com/demo/extension-test`.
+
 The extension bypasses Google, Bing, DuckDuckGo, verified news portals,
 `.gov.in`, and `.nic.in`. It scans only interactive scopes, honors
 `sessionStorage.guardain_bypass_active`, captures high-risk tabs, uploads
