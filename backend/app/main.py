@@ -252,22 +252,37 @@ async def connect_services() -> None:
     if inference is None or getattr(inference, "closed", False):
         inference = MuRILInferenceService(allow_synthetic_model=settings.guardain_allow_synthetic_model)
     if asyncpg is not None and settings.database_url.startswith(("postgres://", "postgresql://")):
-        try:
-            db_pool = await asyncpg.create_pool(
-                **_postgres_connection_options(settings.database_url),
-                min_size=1,
-                max_size=5,
-                timeout=settings.service_connect_timeout_seconds,
-                command_timeout=settings.service_connect_timeout_seconds,
-            )
-            repository = ThreatRepository(db_pool)
-            await repository.ensure_schema()
-            db_ready = True
-        except Exception as exc:
-            db_pool = None
-            if settings.environment.lower() in {"production", "prod"}:
-                raise RuntimeError("GuardAIN PostgreSQL is required in production") from exc
-            print(f"GuardAIN database unavailable; using memory fallback: {exc}")
+        production = settings.environment.lower() in {"production", "prod"}
+        # A newly-created managed database can take a short time to accept
+        # connections. Retry during production startup instead of allowing the
+        # API to exit before its Render database is ready.
+        attempts = 12 if production else 1
+        last_db_error: Exception | None = None
+        for attempt in range(1, attempts + 1):
+            try:
+                db_pool = await asyncpg.create_pool(
+                    **_postgres_connection_options(settings.database_url),
+                    min_size=1,
+                    max_size=5,
+                    timeout=settings.service_connect_timeout_seconds,
+                    command_timeout=settings.service_connect_timeout_seconds,
+                )
+                repository = ThreatRepository(db_pool)
+                await repository.ensure_schema()
+                db_ready = True
+                break
+            except Exception as exc:
+                db_pool = None
+                last_db_error = exc
+                if attempt < attempts:
+                    print(f"GuardAIN PostgreSQL connection attempt {attempt}/{attempts} failed: {exc}")
+                    await asyncio.sleep(5)
+        if not db_ready:
+            if production:
+                raise RuntimeError(
+                    f"GuardAIN PostgreSQL is required in production; connection failed after {attempts} attempts"
+                ) from last_db_error
+            print(f"GuardAIN database unavailable; using memory fallback: {last_db_error}")
     if db_pool is None and repository.sqlite_path is not None:
         await repository.ensure_schema()
         db_ready = True
