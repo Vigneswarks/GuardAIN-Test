@@ -107,6 +107,9 @@
       </main>
     </div>
 
+    <!-- On Vercel this is the public, non-secret API origin. On Render the
+         same route is served by FastAPI. Local file use simply falls back. -->
+    <script src="/config.js"></script>
     <script>
       const API_BASE = (window.GUARDAIN_API_URL || localStorage.getItem('guardainApiUrl') || window.location.origin).replace(/\/+$/, '');
       const API_URL = `${API_BASE}/v1/verify`;

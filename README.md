@@ -83,6 +83,14 @@ For a double-clicked local `file:///...` demo fixture, Chrome also requires
 browser-controlled permission. The recommended no-setup test is
 `https://guardain-api.onrender.com/demo/extension-test`.
 
+## Hosted mobile triage
+
+The mobile triage UI can be opened through the Vercel portal at
+`https://guardain-central-portal.vercel.app/pwa/`. Vercel serves the interface
+and uses its public `config.js` to call the Render API; PostgreSQL, Redis, and
+the Python MuRIL/heuristic inference service remain on Render. This separation
+avoids trying to run a large Python/ONNX model inside a static Vercel site.
+
 The extension bypasses Google, Bing, DuckDuckGo, verified news portals,
 `.gov.in`, and `.nic.in`. It scans only interactive scopes, honors
 `sessionStorage.guardain_bypass_active`, captures high-risk tabs, uploads

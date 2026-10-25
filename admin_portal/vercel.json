@@ -7,5 +7,9 @@
       {"key": "X-Frame-Options", "value": "DENY"}
     ]},
     {"source": "/config.js", "headers": [{"key": "Cache-Control", "value": "no-store"}]}
+  ],
+  "rewrites": [
+    {"source": "/pwa", "destination": "https://guardain-api.onrender.com/pwa/"},
+    {"source": "/pwa/:path*", "destination": "https://guardain-api.onrender.com/pwa/:path*"}
   ]
 }
