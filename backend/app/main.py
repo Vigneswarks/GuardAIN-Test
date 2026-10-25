@@ -279,9 +279,14 @@ async def connect_services() -> None:
                     await asyncio.sleep(5)
         if not db_ready:
             if production:
+                database_host = urlparse(settings.database_url).hostname or "unknown-host"
+                diagnostic = (
+                    f"{type(last_db_error).__name__}: {last_db_error!r} "
+                    f"(host={database_host})"
+                )
                 raise RuntimeError(
                     "GuardAIN PostgreSQL is required in production; "
-                    f"connection failed after {attempts} attempts: {last_db_error}"
+                    f"connection failed after {attempts} attempts: {diagnostic}"
                 ) from last_db_error
             print(f"GuardAIN database unavailable; using memory fallback: {last_db_error}")
     if db_pool is None and repository.sqlite_path is not None:
