@@ -106,7 +106,7 @@ async function analyzeMessage() {
   }
   result.textContent = "Analyzing...";
   try {
-    const stored = await chrome.storage.local.get({ guardainApiBaseUrl: "http://127.0.0.1:8080" });
+    const stored = await chrome.storage.local.get({ guardainApiBaseUrl: "https://guardain-api.onrender.com" });
     const response = await fetch(`${String(stored.guardainApiBaseUrl).replace(/\/+$/, "")}/v1/analyzer/message`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -124,7 +124,7 @@ async function analyzeMessage() {
 async function setupApiBase() {
   const input = document.getElementById("apiBaseInput");
   const status = document.getElementById("apiBaseStatus");
-  const stored = await chrome.storage.local.get({ guardainApiBaseUrl: "http://127.0.0.1:8080" });
+  const stored = await chrome.storage.local.get({ guardainApiBaseUrl: "https://guardain-api.onrender.com" });
   input.value = stored.guardainApiBaseUrl;
   const report = await chrome.storage.local.get('guardainReportStatus');
   status.textContent = report.guardainReportStatus || 'No reports sent yet';
@@ -139,7 +139,7 @@ async function setupApiBase() {
     // Save first. chrome.storage.local survives browser restarts and service
     // worker restarts, so a temporarily offline server never forces the user
     // to type the URL again.
-    await chrome.storage.local.set({ guardainApiBaseUrl: value });
+    await chrome.storage.local.set({ guardainApiBaseUrl: value, guardainApiConfigured: true });
     status.textContent = "Saved locally. Testing central server...";
     try {
       const response = await fetch(`${value}/health`);

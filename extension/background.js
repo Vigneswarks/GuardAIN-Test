@@ -2,7 +2,10 @@
 // Local-first fraud detection
 // High-risk warning -> content.js -> 8s countdown -> AUTO_CLOSE_WARNING_TAB
 
-const DEFAULT_API_BASE = "http://127.0.0.1:8080";
+// Public production endpoint. It can be overridden in the popup for local or
+// private-network development without changing the shared cloud destination.
+const DEFAULT_API_BASE = "https://guardain-api.onrender.com";
+const LEGACY_LOCAL_API_BASE = "http://127.0.0.1:8080";
 const SAFE_ZONES = ['google.com', 'google.co.in', 'bing.com', 'duckduckgo.com', 'thehindu.com', 'timesofindia.indiatimes.com', 'gov.in', 'nic.in'];
 function isGuardainSafeZone(host) {
   const value = String(host || '').toLowerCase().replace(/\.$/, '');
@@ -88,6 +91,22 @@ async function apiBase() {
   const stored = await chrome.storage.local.get({ guardainApiBaseUrl: DEFAULT_API_BASE });
   return String(stored.guardainApiBaseUrl || DEFAULT_API_BASE).replace(/\/+$/, "");
 }
+
+async function migrateCentralEndpoint() {
+  const stored = await chrome.storage.local.get({
+    guardainApiBaseUrl: "",
+    guardainApiConfigured: false,
+  });
+  // Migrate only the earlier implicit localhost default. A URL saved by an
+  // operator remains untouched.
+  if (!stored.guardainApiConfigured && (!stored.guardainApiBaseUrl || stored.guardainApiBaseUrl === LEGACY_LOCAL_API_BASE)) {
+    await chrome.storage.local.set({ guardainApiBaseUrl: DEFAULT_API_BASE });
+  }
+}
+
+if (chrome.runtime.onInstalled) chrome.runtime.onInstalled.addListener(() => { void migrateCentralEndpoint(); });
+if (chrome.runtime.onStartup) chrome.runtime.onStartup.addListener(() => { void migrateCentralEndpoint(); });
+void migrateCentralEndpoint();
 
 
 function offlineClassify(signal = {}) {

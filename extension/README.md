@@ -2,13 +2,16 @@
 
 ## Install
 
-1. Start the local API first (`docker compose up --build` or `./start.ps1`).
+1. The production extension defaults to `https://guardain-api.onrender.com`.
+   For a local API, start it first (`docker compose up --build` or
+   `./start.ps1`) and override the endpoint in the popup.
 2. Open `chrome://extensions`.
 3. Turn on **Developer mode**.
 4. Select **Load unpacked** and choose this `extension` folder itself, not the
    project root and not a ZIP file.
-5. Open the GuardAIN extension popup. Set **Central server HTTPS URL** to the
-   deployed API origin, or `http://127.0.0.1:8080` for same-laptop testing.
+5. Open the GuardAIN extension popup. The deployed central server is filled in
+   automatically. Select **Save and test connection**; use
+   `http://127.0.0.1:8080` only for same-laptop testing.
 6. Select **Save and test connection**. It must say `Connected`.
 
 ## If Chrome displays an extension error
