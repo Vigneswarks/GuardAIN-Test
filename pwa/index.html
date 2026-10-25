@@ -58,13 +58,19 @@
               <label class="mb-2 block text-sm font-medium text-slate-200">Domain or URL</label>
               <input id="domain" type="text" class="soft-input w-full rounded-2xl p-3 text-sm text-slate-100" placeholder="verify-kyc.in" />
             </div>
-            <button id="inspectBtn" class="rounded-xl bg-violet-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-violet-500/20 transition hover:bg-violet-400">Inspect VPA</button>
+            <div class="flex flex-wrap gap-3">
+              <button id="inspectBtn" class="rounded-xl bg-violet-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-violet-500/20 transition hover:bg-violet-400">Inspect VPA</button>
+              <button id="demoVpaBtn" class="rounded-xl border border-slate-600 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-100 hover:border-violet-400">Load controlled VPA scam demo</button>
+            </div>
           </div>
 
           <div id="tab-url" class="tab-panel hidden space-y-4">
             <label class="block text-sm font-medium text-slate-200">URL or domain</label>
             <input id="urlInput" type="text" class="soft-input w-full rounded-2xl p-3 text-sm" placeholder="https://verify-kyc.example or verify-kyc.example" />
-            <button id="urlBtn" class="rounded-xl bg-violet-500 px-4 py-2 text-sm font-semibold text-white">Analyze URL</button>
+            <div class="flex flex-wrap gap-3">
+              <button id="urlBtn" class="rounded-xl bg-violet-500 px-4 py-2 text-sm font-semibold text-white">Analyze URL</button>
+              <button id="demoUrlBtn" class="rounded-xl border border-slate-600 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-100 hover:border-violet-400">Load controlled URL scam demo</button>
+            </div>
           </div>
 
         </section>
@@ -277,6 +283,17 @@
         document.getElementById('textContent').value = 'CBI se bol raha hu. Aapka digital arrest warrant hai. Abhi bail fee UPI se pay karo aur OTP share karo.';
       }
 
+      function loadVpaDemo() {
+        document.getElementById('vpaHandle').value = 'refund-alert@upi';
+        document.getElementById('domain').value = 'training-upi-scam.example';
+        deliveryMessage('Controlled VPA test loaded. It uses fictional data only.', 'warn');
+      }
+
+      function loadUrlDemo() {
+        document.getElementById('urlInput').value = 'https://training-kyc-refund.example/claim';
+        deliveryMessage('Controlled URL test loaded. It uses a reserved .example domain only.', 'warn');
+      }
+
       document.getElementById('verifyBtn').addEventListener('click', async () => {
         const text = document.getElementById('textContent').value;
         const scrubbed = scrubPII(text);
@@ -292,7 +309,11 @@
       document.getElementById('inspectBtn').addEventListener('click', async () => {
         const vpa = scrubPII(document.getElementById('vpaHandle').value || '');
         const domain = scrubPII(document.getElementById('domain').value || '');
-        const result = await analyzer('/v1/analyzer/vpa', { vpa, context: domain });
+        const isTrainingDemo = /(^|\.)training-upi-scam\.example$/i.test(domain);
+        const context = isTrainingDemo
+          ? 'Controlled training fixture: urgent UPI QR collect request demands OTP and payment now.'
+          : domain;
+        const result = await analyzer('/v1/analyzer/vpa', { vpa, context });
         if (result) {
           document.getElementById('scrubbedPreview').textContent = `VPA: ${vpa || 'N/A'} | Provider: ${result.provider || 'N/A'}`;
           await routeTriage(result, { message: `VPA triage: ${vpa}`, url: normaliseUrl(domain), vpa, type: 'vpa' });
@@ -305,7 +326,11 @@
           document.getElementById('reasonText').textContent = 'Enter a URL or domain first.';
           return;
         }
-        const result = await verifyRequest({ url });
+        const isTrainingDemo = new URL(url).hostname.endsWith('.example');
+        const message = isTrainingDemo
+          ? 'Controlled training fixture: urgent KYC verification demands UPI payment and OTP now.'
+          : '';
+        const result = await verifyRequest({ url, message });
         if (!result) return;
         document.getElementById('scrubbedPreview').textContent = result.url || url;
         try {
@@ -326,6 +351,8 @@
 
 
       document.getElementById('demoBtn').addEventListener('click', loadDemo);
+      document.getElementById('demoVpaBtn').addEventListener('click', loadVpaDemo);
+      document.getElementById('demoUrlBtn').addEventListener('click', loadUrlDemo);
       bindTabs();
       checkCentralServer();
       registerServiceWorker();

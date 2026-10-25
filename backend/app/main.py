@@ -185,6 +185,9 @@ class IncidentRequest(BaseModel):
 
 class VpaRequest(BaseModel):
     vpa: str = Field(min_length=3, max_length=320)
+    # The client may provide a short, redacted transaction context. It is used
+    # for scam-pattern triage only and is never a reason to block a webpage.
+    context: str = Field(default="", max_length=2_000)
 
 
 class WhitelistRequest(BaseModel):
@@ -532,7 +535,7 @@ async def telemetry(payload: IncidentRequest, tasks: BackgroundTasks) -> dict[st
 
 @app.post("/v1/analyzer/vpa")
 async def analyze_vpa(payload: VpaRequest) -> dict[str, Any]:
-    result = await _verify(payload.vpa, "")
+    result = await _verify(f"{payload.vpa} {payload.context}".strip(), "")
     result["vpa"] = payload.vpa
     result["action"] = "BLOCK" if result["threat_score"] >= 0.85 else "REVIEW" if result["threat_score"] >= 0.45 else "ALLOW"
     return result

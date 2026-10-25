@@ -157,3 +157,16 @@ def test_accepts_message_only_pwa_triage_incident() -> None:
         entry = next(item for item in feed["incidents"] if item["id"] == created.json()["incident_id"])
         assert entry["source"] == "pwa-triage"
         assert entry["url"] is None
+
+
+def test_vpa_context_can_be_assessed_without_blocking_a_page() -> None:
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/analyzer/vpa",
+            json={
+                "vpa": "refund-alert@upi",
+                "context": "urgent UPI QR collect request demands OTP and payment now",
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["threat_score"] >= 0.45
