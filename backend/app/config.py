@@ -10,6 +10,7 @@ from __future__ import annotations
 import secrets
 from pathlib import Path
 from typing import Any, Literal
+from urllib.parse import urlparse
 
 from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -55,10 +56,10 @@ class Settings(BaseSettings):
     redis_request_ttl_seconds: int = 60
     service_connect_timeout_seconds: float = Field(default=2.0, gt=0, le=30)
     database_url: str = "sqlite:///./guardain.db"
-    # ``auto`` follows the connection URL. Use ``require`` for providers that
-    # give a host/port URL without an sslmode parameter. Never use ``disable``
-    # for a public database.
-    database_ssl_mode: Literal["auto", "require", "disable"] = "auto"
+    # ``auto`` follows the connection URL. ``private`` is reserved for a
+    # provider-private, network-isolated database hostname; it is rejected for
+    # public DNS endpoints in production.
+    database_ssl_mode: Literal["auto", "require", "private", "disable"] = "auto"
     model_version: str = "heuristic-fallback-v1"
     deep_analysis_enabled: bool = True
     verify_timeout_ms: int = 5000
@@ -130,11 +131,17 @@ class Settings(BaseSettings):
                 raise ValueError("DATABASE_URL must use PostgreSQL in production")
             if self.database_ssl_mode == "disable":
                 raise ValueError("DATABASE_SSL_MODE=disable is not allowed in production")
+            if self.database_ssl_mode == "private":
+                host = (urlparse(self.database_url).hostname or "").lower()
+                if not host or "." in host:
+                    raise ValueError(
+                        "DATABASE_SSL_MODE=private is permitted only for a private, non-DNS database hostname"
+                    )
             tls_in_url = any(marker in self.database_url.lower() for marker in (
                 "sslmode=require", "sslmode=verify-ca", "sslmode=verify-full", "ssl=true", "ssl=1",
             ))
             if self.database_ssl_mode == "auto" and not tls_in_url:
-                raise ValueError("Production DATABASE_URL must require TLS or DATABASE_SSL_MODE=require")
+                raise ValueError("Production DATABASE_URL must require TLS or an approved private-network mode")
             if self.guardain_allow_synthetic_model:
                 raise ValueError("Synthetic MuRIL models are not allowed in production")
             if not self.redis_url.startswith(("redis://", "rediss://")):

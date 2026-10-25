@@ -19,7 +19,7 @@ services:
           name: guardain-postgres
           property: connectionString
       - key: DATABASE_SSL_MODE
-        value: require
+        value: private
       - key: REDIS_URL
         fromService:
           name: guardain-cache

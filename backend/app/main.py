@@ -84,6 +84,8 @@ def _postgres_connection_options(database_url: str) -> dict[str, Any]:
     })
     clean_url = urlunparse(parsed._replace(query=urlencode(query)))
     options: dict[str, Any] = {"dsn": clean_url}
+    # Provider-private URLs (validated in Settings) use their isolated network
+    # without TLS. Public URLs always retain CA-validated TLS.
     if require_tls:
         options["ssl"] = ssl.create_default_context()
     return options
