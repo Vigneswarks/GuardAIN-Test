@@ -6,16 +6,22 @@
     <meta name="theme-color" content="#050b16">
     <title>GuardAIN Mobile Triage</title>
     <style>
-      html, body, iframe { width: 100%; height: 100%; margin: 0; border: 0; background: #050b16; }
-      .fallback { color: #dbeafe; font: 16px system-ui, sans-serif; padding: 2rem; }
-      a { color: #67e8f9; }
+      body { margin:0; background:#050b16; color:#e2e8f0; font:16px system-ui,sans-serif; }
+      main { max-width:760px; margin:auto; padding:28px 16px; } .card { padding:22px; border:1px solid #233653; border-radius:18px; background:#0b1525; }
+      input,textarea,button { box-sizing:border-box; width:100%; padding:12px; border-radius:10px; margin-top:9px; font:inherit; } input,textarea { background:#020817; border:1px solid #334155; color:white; }
+      button { border:0; background:#22d3ee; color:#06111d; font-weight:800; cursor:pointer; } .alt { background:#172554; color:#e0f2fe; border:1px solid #334155; } .hidden { display:none; }
+      #status,#result,#delivery { margin:12px 0; padding:12px; border-radius:10px; background:#101c30; } .tabs { display:flex; gap:8px; margin:16px 0; } .tabs button { width:auto; margin:0; }
     </style>
   </head>
-  <body>
-    <iframe
-      title="GuardAIN Mobile Fraud Triage"
-      src="https://guardain-api.onrender.com/pwa/"
-      referrerpolicy="no-referrer"
-    ><div class="fallback">Open <a href="https://guardain-api.onrender.com/pwa/">GuardAIN Mobile Triage</a>.</div></iframe>
-  </body>
+  <body><main><section class="card"><b>GUARDAIN · CENTRAL TRIAGE</b><h1>Mobile Fraud Intelligence</h1><div id="status">Checking central service…</div><div class="tabs"><button data-tab="message">Message</button><button data-tab="vpa" class="alt">VPA</button><button data-tab="url" class="alt">URL</button></div>
+  <div id="message"><textarea id="msg" rows="6" placeholder="Paste a suspicious message"></textarea><button id="msgDemo" class="alt">Load digital-arrest demo</button><button id="msgRun">Analyze & report if risky</button></div>
+  <div id="vpa" class="hidden"><input id="vpaInput" placeholder="merchant@upi"><input id="vpaDomain" placeholder="Related domain (optional)"><button id="vpaDemo" class="alt">Load fake UPI scam demo</button><button id="vpaRun">Analyze & report if risky</button></div>
+  <div id="url" class="hidden"><input id="urlInput" placeholder="https://example.test/login"><button id="urlDemo" class="alt">Load fake phishing URL demo</button><button id="urlRun">Analyze & report if risky</button></div>
+  <div id="result">Awaiting input.</div><div id="delivery">High-risk incidents will be sent to the central portal.</div></section></main>
+  <script>
+  const API='https://guardain-api.onrender.com', $=x=>document.getElementById(x), norm=x=>/^https?:\/\//i.test(x)?x:`https://${x}`;
+  function show(d){const s=Number(d.threat_score??d.score??0),a=(d.action||(s>=.75?'BLOCK':s>=.45?'REVIEW':'ALLOW')).toUpperCase();$('result').textContent=`${a} · ${(s*100).toFixed(0)}% · ${(d.key_trigger_words||d.matched_categories||d.reasons||[]).join(', ')||'No corroborated signal'}`;return{s,a}}
+  async function run(message='',url='',type='message',vpa=''){try{$('delivery').textContent='Contacting central analysis…';const r=await fetch(`${API}/v1/verify`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message,url})});if(!r.ok)throw Error(`HTTP ${r.status}`);const d=await r.json(),v=show(d);if(v.s<.45&&!['BLOCK','REVIEW'].includes(v.a)){$('delivery').textContent='No central incident: below review threshold.';return}const q=await fetch(`${API}/v1/telemetry`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({client_report_id:crypto.randomUUID(),url:url||null,clean_url:url||null,message,threat_score:Math.max(v.s,v.a==='BLOCK'?.85:v.a==='REVIEW'?.45:0),source:'vercel-pwa-triage',analysis:d,browser:{client:'GuardAIN Vercel PWA',triage_type:type,vpa:vpa||undefined}})});if(!q.ok)throw Error(`Report HTTP ${q.status}`);const ok=await q.json();$('delivery').textContent=`Central incident queued · ${ok.incident_id.slice(0,8)}… · ${ok.live_store?'persisted':'temporary store'}`}catch(e){$('result').textContent=`Verification failed: ${e.message}`;$('delivery').textContent='No report delivered.'}}
+  document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{['message','vpa','url'].forEach(x=>$(x).classList.toggle('hidden',x!==b.dataset.tab))});$('msgDemo').onclick=()=>$('msg').value='CBI se bol raha hu. Aapka digital arrest warrant hai. Abhi bail fee UPI se pay karo aur OTP share karo.';$('msgRun').onclick=()=>run($('msg').value);$('vpaDemo').onclick=()=>{$('vpaInput').value='refund-alert@upi';$('vpaDomain').value='training-upi-scam.example'};$('vpaRun').onclick=()=>{let d=$('vpaDomain').value,v=$('vpaInput').value;run(/training-upi-scam\.example$/i.test(d)?'Controlled training fixture: urgent UPI QR collect request demands OTP and payment now.':`VPA review: ${v}`,d?norm(d):'','vpa',v)};$('urlDemo').onclick=()=>$('urlInput').value='https://training-kyc-refund.example/claim';$('urlRun').onclick=()=>{let u=norm($('urlInput').value);run(new URL(u).hostname.endsWith('.example')?'Controlled training fixture: urgent KYC verification demands UPI payment and OTP now.':'',u,'url')};fetch(`${API}/health`).then(r=>r.json()).then(h=>$('status').textContent=`Central online · ${h.inference?.engine||'analysis ready'}`).catch(()=>$('status').textContent='Central server unavailable');
+  </script></body>
 </html>
