@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>GaurdAIN</title>
+  <title>GuardAIN</title>
   <style>
     :root {
       --safe: #1a9c5b;
@@ -90,6 +90,15 @@
     }
     .mode.offline { color: #b00020; font-weight: 600; }
     .mode.online { color: var(--safe); font-weight: 600; }
+    .message-tool { padding: 0 16px 14px; border-top: 1px solid #eef0f2; }
+    .message-tool label { display: block; margin: 12px 0 6px; font-size: 12px; font-weight: 600; }
+    .message-tool textarea { box-sizing: border-box; width: 100%; resize: vertical; border: 1px solid #d9dee5; border-radius: 6px; padding: 7px; font: 11px inherit; }
+    .message-tool button { margin-top: 7px; border: 0; border-radius: 6px; padding: 7px 9px; color: #fff; background: #1c2430; cursor: pointer; font-size: 11px; }
+    .server-config { padding: 12px 16px; border-top: 1px solid #eef0f2; }
+    .server-config label { display: block; margin-bottom: 6px; font-size: 11px; font-weight: 600; }
+    .server-config input { box-sizing: border-box; width: 100%; border: 1px solid #d9dee5; border-radius: 6px; padding: 7px; font-size: 11px; }
+    .server-config button { margin-top: 7px; border: 0; border-radius: 6px; padding: 7px 9px; color: #fff; background: #2563eb; cursor: pointer; font-size: 11px; }
+    #messageResult { margin-top: 7px; font-size: 11px; color: var(--muted); line-height: 1.35; }
     footer {
       padding: 10px 16px;
       border-top: 1px solid #eef0f2;
@@ -102,7 +111,7 @@
 <body>
 <header>
     <img src="icon48.png" alt="" />
-    <h1>GaurdAIN Shield</h1>
+    <h1>GuardAIN Shield</h1>
   </header>
 
   <div class="status">
@@ -115,15 +124,29 @@
 
   <div class="details" id="details"></div>
 
+  <div class="message-tool">
+    <label for="messageInput">Message scam check</label>
+    <textarea id="messageInput" rows="4" placeholder="Paste a suspicious SMS or chat message"></textarea>
+    <button id="messageCheck" type="button">Break down message</button>
+    <div id="messageResult" aria-live="polite"></div>
+  </div>
+
   <div class="controls">
 <label class="toggle-row">
-      <span>Local heuristic engine</span>
+      <span>Page protection</span>
       <input type="checkbox" id="heuristicToggle" checked />
     </label>
     <div class="mode offline" id="offlineIndicator">◉ Autonomous offline mode</div>
   </div>
 
-  <footer>Privacy-first fraud detection · no page data stored</footer>
+  <div class="server-config">
+    <label for="apiBaseInput">Central server HTTPS URL</label>
+    <input id="apiBaseInput" type="url" placeholder="https://api.guardain.example" />
+    <button id="saveApiBase" type="button">Save and test connection</button>
+    <div id="apiBaseStatus" class="mode" aria-live="polite"></div>
+  </div>
+
+  <footer>Routine checks send domain and signals. High-risk reports may include a visible-tab screenshot; screenshots can contain personal data.</footer>
 
   <script src="popup.js"></script>
 </body>

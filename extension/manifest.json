@@ -4,10 +4,12 @@
   "version": "2.0.0",
   "description": "Privacy-first, local-first fraud detection for phishing, digital arrest, fake investment, and UPI scam pages.",
   "permissions": [
+    "alarms",
     "activeTab",
+    "notifications",
     "storage",
     "tabs",
-    "scripting"
+    "webNavigation"
   ],
   "host_permissions": ["<all_urls>"],
   "background": {
@@ -16,10 +18,7 @@
   },
   "content_scripts": [
     {
-      "matches": [
-        "<all_urls>",
-        "file://*/*"
-      ],
+      "matches": ["<all_urls>"],
       "js": [
         "content.js"
       ],
@@ -28,7 +27,7 @@
     }
   ],
   "action": {
-    "default_title": "GaurdAIN Shield",
+    "default_title": "GuardAIN Shield",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icon16.png",

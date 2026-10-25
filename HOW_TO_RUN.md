@@ -1,80 +1,222 @@
-# How to Run GuardAIN
+# GuardAIN V2: Run, Demo, and Validate
 
-This guide covers the complete local development flow, authentication, Docker,
-and the browser extension.
+GuardAIN is a FastAPI threat-analysis platform with:
 
-## 1. Prepare Python
+- Central admin portal and evidence viewer.
+- Mobile PWA for message, URL, and UPI/VPA triage.
+- Chrome Manifest V3 fraud-protection extension.
+- Safe-zone bypass for search engines, approved news portals, `.gov.in`, and
+  `.nic.in`.
+- PII redaction, screenshot hashing, WHOIS enrichment, and incident telemetry.
+- SQLite fallback for local development.
+- PostgreSQL and Redis support through Docker Compose.
 
-Use Python 3.11 or newer. From the repository root:
+## 1. Prerequisites
+
+For the local fallback:
+
+- Windows 10/11.
+- Python 3.11 or newer.
+- PowerShell.
+
+For the full container stack:
+
+- Docker Desktop with the Linux engine running.
+
+From PowerShell, move to the repository root:
 
 ```powershell
-py -3.11 -m venv .venv
+Set-Location "C:\Users\ksvig\OneDrive\Desktop\GuardAIN\Guardain v2"
+```
+
+Confirm the tools:
+
+```powershell
+python --version
+docker --version
+docker compose version
+```
+
+## 2. Recommended Docker run
+
+Docker runs the API, PostgreSQL, and Redis together.
+
+```powershell
+docker compose up -d --build
+docker compose ps
+Invoke-RestMethod http://127.0.0.1:8080/health
+```
+
+Expected health:
+
+```json
+{
+  "status": "online",
+  "service": "guardain-api",
+  "database": true,
+  "redis": true
+}
+```
+
+Open the working application:
+
+| Surface | URL |
+|---|---|
+| Admin portal | http://127.0.0.1:8080/ |
+| Mobile PWA | http://127.0.0.1:8080/pwa/ |
+| Swagger API | http://127.0.0.1:8080/docs |
+| Health | http://127.0.0.1:8080/health |
+
+Local development login:
+
+```text
+Username: admin
+Password: admin@26
+```
+
+Do not use these credentials outside local development.
+
+Stop the stack without deleting database/cache data:
+
+```powershell
+docker compose down
+```
+
+Delete Docker volumes only when you intentionally want a clean database:
+
+```powershell
+docker compose down -v
+```
+
+## 3. Windows local fallback
+
+Use this path when Docker Desktop is unavailable. It runs the API, admin
+portal, and PWA with SQLite. Redis is optional; health will report
+`"redis": false` when no Redis service is available.
+
+Create and activate the environment:
+
+```powershell
+python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -r backend\requirements.txt
 ```
 
-If PowerShell blocks activation, run the project with the explicit interpreter:
+If PowerShell blocks activation for the current user, run:
 
 ```powershell
-.\.venv\Scripts\python.exe run_all.py
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\.venv\Scripts\Activate.ps1
 ```
 
-## 2. Start the whole local project
+Start the application:
 
 ```powershell
-python run_all.py
+$env:ENVIRONMENT = "development"
+$env:DATABASE_URL = "sqlite:///./guardain.db"
+$env:REDIS_URL = "redis://127.0.0.1:6379/0"
+$env:JWT_SECRET_KEY = "local-only-secret-with-at-least-32-characters"
+$env:GUARDAIN_ADMIN_USERNAME = "admin"
+$env:GUARDAIN_ADMIN_PASSWORD = "admin@26"
+python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8080
 ```
 
-The launcher starts:
+Keep this terminal running. Open:
 
-| Component | URL |
-| --- | --- |
-| FastAPI | <http://127.0.0.1:8080> |
-| Health | <http://127.0.0.1:8080/health> |
-| Swagger docs | <http://127.0.0.1:8080/docs> |
-| PWA | <http://127.0.0.1:3000> |
-| Admin portal | <http://127.0.0.1:3001> |
+- http://127.0.0.1:8080/
+- http://127.0.0.1:8080/pwa/
+- http://127.0.0.1:8080/docs
 
-The first startup can take longer while optional model libraries initialize.
-The launcher allows up to 60 seconds for the API health check. The project
-continues in heuristic fallback mode when Redis, PostgreSQL, or an ONNX model
-is unavailable.
+Stop the server with `Ctrl+C`.
 
-Custom ports:
+The repository also includes an automated starter:
 
 ```powershell
-python run_all.py --api-port 8080 --pwa-port 3000 --admin-port 3001
+.\start.ps1
 ```
 
-Stop the launcher with `Ctrl+C`.
+Use the explicit commands above when you need to control environment values
+or avoid automatic dependency installation.
 
-## 3. Test the API and authentication
+## 4. End-to-end demo
 
-Check health:
+### 4.1 Open the PWA
+
+1. Open http://127.0.0.1:8080/pwa/.
+2. Leave the sample message in the Chat / Text Triage tab.
+3. Select **Verify Threat**.
+4. Confirm that a risk score, classification, reason, and execution time appear.
+5. Select **VPA** and test `merchant@upi`.
+6. Select **URL** and test `https://verify-kyc.example`.
+
+### 4.2 Test the safe-zone guarantee
+
+The following search query must never be blocked:
 
 ```powershell
-Invoke-RestMethod http://127.0.0.1:8080/health
+Invoke-RestMethod `
+  "http://127.0.0.1:8080/v1/verify?url=https%3A%2F%2Fwww.google.com%2Fsearch%3Fq=digital%20arrest"
 ```
 
-Verify a message without authentication:
+The response must contain:
+
+```text
+threat_score = 0.0
+engine = safe-zone-bypass
+```
+
+### 4.3 Create an incident for the admin portal
+
+```powershell
+$incident = @{
+  url = "https://verify-kyc.example/login"
+  message = "Urgent KYC verification required"
+  threat_score = 0.91
+  source = "manual-demo"
+} | ConvertTo-Json
+
+Invoke-RestMethod `
+  -Uri http://127.0.0.1:8080/v1/telemetry `
+  -Method Post `
+  -ContentType "application/json" `
+  -Body $incident
+```
+
+Open the admin portal, sign in, and select **Refresh Telemetry Feed**. The
+incident should appear as a critical event. Select **View Raw JSON** to see
+the URL, SHA-256 DOM digest, and WHOIS enrichment.
+
+## 5. API smoke tests
+
+### Verify a suspicious message
 
 ```powershell
 Invoke-RestMethod `
   -Uri http://127.0.0.1:8080/v1/verify `
   -Method Post `
   -ContentType "application/json" `
-  -Body '{"text_content":"Your electricity bill is due today. Verify KYC immediately."}'
+  -Body '{"message":"CBI digital arrest. Pay bail immediately and share OTP.","url":""}'
 ```
 
-Sign in to the admin API using the development account:
+### Analyze a VPA
+
+```powershell
+Invoke-RestMethod `
+  -Uri http://127.0.0.1:8080/v1/analyzer/vpa `
+  -Method Post `
+  -ContentType "application/json" `
+  -Body '{"vpa":"merchant@upi"}'
+```
+
+### Authenticate and read incidents
 
 ```powershell
 $login = Invoke-RestMethod `
   -Uri http://127.0.0.1:8080/v1/admin/login `
   -Method Post `
   -ContentType "application/json" `
-  -Body '{"username":"admin","password":"guardain-local-admin"}'
+  -Body '{"username":"admin","password":"admin@26"}'
 
 $headers = @{ Authorization = "Bearer $($login.access_token)" }
 Invoke-RestMethod `
@@ -82,52 +224,140 @@ Invoke-RestMethod `
   -Headers $headers
 ```
 
-The same credentials work in the admin portal. For a shared deployment, set
-these environment variables before starting the API:
+## 6. Run automated tests
+
+Install development dependencies:
 
 ```powershell
-$env:GUARDAIN_ADMIN_PASSWORD = "use-a-strong-password"
-$env:JWT_SECRET_KEY = "use-a-long-random-secret"
+python -m pip install -r requirements-dev.txt
 ```
 
-## 4. Run with Docker Compose
-
-Docker Compose requires Docker Desktop:
+Run the integration suite:
 
 ```powershell
-$env:JWT_SECRET_KEY = "replace-with-a-long-random-secret"
-$env:GUARDAIN_ADMIN_PASSWORD = "replace-with-a-strong-admin-password"
-$env:DATABASE_URL = "postgresql://guardain:guardain@postgres:5432/guardain"
-docker compose up --build
+python -m pytest -q
 ```
 
-The API waits for healthy Redis and PostgreSQL containers. Stop it with
-`Ctrl+C`; remove the containers and volumes only when you intentionally want
-to delete local database/cache data:
+The tests exercise:
 
-```powershell
-docker compose down
-```
+- API health and static portal/PWA delivery.
+- Safe-zone and scam verification.
+- Administrator login and protected incident feed.
+- Invalid screenshot rejection.
 
-## 5. Load the Chrome extension
+## 7. Load the Chrome extension
 
 1. Open `chrome://extensions`.
 2. Enable **Developer mode**.
-3. Select **Load unpacked** and choose the `extension` folder.
-4. Open the extension details and enable **Allow access to file URLs**.
-5. Open `extension\scam.html` to see the blocking flow.
-6. Open `extension\safe.html` to see the safe flow.
+3. Select **Load unpacked**.
+4. Choose:
+   `C:\Users\ksvig\OneDrive\Desktop\GuardAIN\Guardain v2\extension`
+5. Open the extension popup and confirm the API is reachable.
 
-The extension is offline-first. Its optional API base URL is stored as
-`guardainApiBaseUrl` in Chrome local storage.
+The local API base is:
 
-## Troubleshooting
+```text
+http://127.0.0.1:8080
+```
 
-- **API did not become healthy:** wait for the first startup to finish, then
-  retry. Check that ports 8080, 3000, and 3001 are not already in use.
-- **Admin login fails:** use the configured `GUARDAIN_ADMIN_PASSWORD`; if it is
-  unset, the development password is `guardain-local-admin`.
-- **Fallback status is true:** this is expected without reachable Redis and
-  PostgreSQL. Verification still works in local heuristic mode.
-- **Extension changes are not visible:** reload the extension from
-  `chrome://extensions`.
+The popup now includes **Central server HTTPS URL**. Enter the public HTTPS
+API address and select **Save and test connection**. For testing on one private
+LAN, an address such as `http://192.168.1.25:8080` is accepted.
+
+The extension scans only targeted interactive scopes. On a high-risk result it
+captures the visible tab, computes a SHA-256 screenshot hash, sends telemetry
+to `/v1/telemetry`, and displays the eight-second circuit breaker. Selecting
+**Proceed anyway** sets the session bypass lock.
+
+## 8. MuRIL model
+
+The API remains usable with the deterministic fallback classifier when the
+ONNX model is not present. A base MuRIL checkpoint is not a fraud classifier;
+it must first be fine-tuned on labeled data. Run the complete pipeline on a
+GPU-equipped development machine:
+
+```powershell
+python -m pip install -r ai_pipeline\requirements.txt
+python ai_pipeline\dataset_generator.py --count 2400
+python ai_pipeline\train_muril.py --epochs 3 --batch-size 8
+python ai_pipeline\export_onnx.py
+```
+
+Verify model artifacts:
+
+```powershell
+Test-Path backend\models\guardain_muril.onnx
+Test-Path backend\models\guardain_muril.onnx.data
+Test-Path backend\models\guardain_tokenizer
+```
+
+After restarting the API, `/health` must report
+`inference.model_loaded: true` and `inference.engine: muril-onnx`. The portal
+also displays **MuRIL ONNX ACTIVE**. Do not accept an exported base checkpoint
+with a randomly initialized classification head.
+
+## 9. Access from another laptop
+
+The server already listens on all interfaces. On the central Windows PC, set
+the active network profile to **Private**, open an elevated PowerShell window,
+and run:
+
+```powershell
+.\scripts\enable_lan_access.ps1
+.\start.ps1
+```
+
+The starter prints one or more LAN URLs. Open the appropriate URL from the
+second laptop, for example `http://192.168.1.25:8080/`. Configure that same URL
+in the extension popup on the second laptop. Both devices must be on the same
+trusted LAN, and Windows must not be using a Public network profile.
+
+For access over the internet, do not forward port 8080 directly. Deploy the
+Docker image behind a public HTTPS reverse proxy/cloud service, use managed
+PostgreSQL and Redis, and set the extension to `https://API_HOST`. See
+`HOW_TO_IMPLEMENT_CLOUD.md`.
+
+## 10. Troubleshooting
+
+### Port 8080 is already in use
+
+```powershell
+Get-NetTCPConnection -LocalPort 8080 -State Listen
+```
+
+Stop only the identified process:
+
+```powershell
+Stop-Process -Id <PID>
+```
+
+### Docker cannot connect
+
+Start Docker Desktop, wait for the Linux engine to become ready, then run:
+
+```powershell
+docker info
+docker compose up -d --build
+```
+
+### Health reports `redis: false`
+
+This is expected for the Python fallback unless Redis is running. Verification
+continues to work; Docker mode starts Redis automatically.
+
+### Clear local fallback data
+
+Stop the API first, then remove only the generated local database:
+
+```powershell
+Remove-Item -LiteralPath .\guardain.db -Force -ErrorAction SilentlyContinue
+```
+
+Never delete the repository root or unrelated user files.
+
+## 11. Production deployment
+
+For managed PostgreSQL, Redis, HTTPS, CORS, secrets, monitoring, and backups,
+follow [HOW_TO_IMPLEMENT_CLOUD.md](./HOW_TO_IMPLEMENT_CLOUD.md). Production
+must use a unique JWT secret, a strong administrator password, HTTPS, and
+PostgreSQL/Redis rather than SQLite.

@@ -1,0 +1,9 @@
+# Optional model training and ONNX export dependencies.
+# Install these only on a development/training machine:
+#   python -m pip install -r ai_pipeline/requirements.txt
+-r ../backend/requirements.txt
+onnx>=1.17,<2
+onnxscript>=0.1,<1
+torch>=2.3,<3
+torch-geometric>=2.5,<3
+accelerate>=1,<2

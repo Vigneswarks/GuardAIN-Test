@@ -7,6 +7,16 @@ const LABELS = {
   unknown: "Not scanned yet"
 };
 
+const SAFE_ZONES = [
+  "google.com", "google.co.in", "bing.com", "duckduckgo.com", "thehindu.com",
+  "timesofindia.indiatimes.com", "gov.in", "nic.in"
+];
+
+function isSafeZone(host) {
+  const value = String(host || "").toLowerCase().replace(/\.$/, "");
+  return SAFE_ZONES.some(domain => value === domain || value.endsWith(`.${domain}`));
+}
+
 function addText(parent, tag, text, className) {
   const el = document.createElement(tag);
   if (className) el.className = className;
@@ -33,6 +43,18 @@ async function render() {
   const verdict = stored[key];
 
   details.replaceChildren();
+
+  // Safe domains never send content, screenshots, URLs, or page signals to
+  // GuardAIN. Show that intentional state instead of a confusing "unknown".
+  if (isSafeZone(host)) {
+    dot.className = "dot safe";
+    label.textContent = "Safe-domain bypass";
+    addText(details, "div", "GuardAIN intentionally does not scan, report, block, or close this configured safe domain.");
+    const indicator = document.getElementById("offlineIndicator");
+    indicator.textContent = "◉ Safe-domain privacy bypass";
+    indicator.className = "mode online";
+    return;
+  }
 
   if (!verdict) {
     dot.className = "dot";
@@ -74,10 +96,71 @@ async function setupToggle() {
   });
 }
 
+async function analyzeMessage() {
+  const input = document.getElementById("messageInput");
+  const result = document.getElementById("messageResult");
+  const message = input.value.trim();
+  if (!message) {
+    result.textContent = "Paste a message to analyze.";
+    return;
+  }
+  result.textContent = "Analyzing...";
+  try {
+    const stored = await chrome.storage.local.get({ guardainApiBaseUrl: "http://127.0.0.1:8080" });
+    const response = await fetch(`${String(stored.guardainApiBaseUrl).replace(/\/+$/, "")}/v1/analyzer/message`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message })
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    const patterns = (data.message_breakdown?.patterns || []).map(pattern => pattern.replace(/_/g, " ")).join(", ");
+    result.textContent = `${String(data.risk_level || "unknown").toUpperCase()} (${Math.round((data.score || 0) * 100)}%). ${patterns || "No known scam pattern matched."}`;
+  } catch (error) {
+    result.textContent = `Message analysis unavailable: ${error.message}`;
+  }
+}
+
+async function setupApiBase() {
+  const input = document.getElementById("apiBaseInput");
+  const status = document.getElementById("apiBaseStatus");
+  const stored = await chrome.storage.local.get({ guardainApiBaseUrl: "http://127.0.0.1:8080" });
+  input.value = stored.guardainApiBaseUrl;
+  const report = await chrome.storage.local.get('guardainReportStatus');
+  status.textContent = report.guardainReportStatus || 'No reports sent yet';
+  document.getElementById("saveApiBase").addEventListener("click", async () => {
+    const value = input.value.trim().replace(/\/+$/, "");
+    const privateLan = /^http:\/\/(localhost|127\.0\.0\.1|10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2})(:\d+)?$/i;
+    if (!/^https:\/\//i.test(value) && !privateLan.test(value)) {
+      status.textContent = "Use HTTPS, or a private-LAN HTTP address for testing.";
+      status.className = "mode offline";
+      return;
+    }
+    // Save first. chrome.storage.local survives browser restarts and service
+    // worker restarts, so a temporarily offline server never forces the user
+    // to type the URL again.
+    await chrome.storage.local.set({ guardainApiBaseUrl: value });
+    status.textContent = "Saved locally. Testing central server...";
+    try {
+      const response = await fetch(`${value}/health`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const health = await response.json();
+      if (health.status !== "online") throw new Error("Unexpected health response");
+      status.textContent = `Connected · ${health.inference?.engine || "server online"}`;
+      status.className = "mode online";
+    } catch (error) {
+      status.textContent = `Saved locally; connection failed: ${error.message}`;
+      status.className = "mode offline";
+    }
+  });
+}
+
 (async () => {
   try {
     await render();
     await setupToggle();
+    await setupApiBase();
+    document.getElementById("messageCheck").addEventListener("click", analyzeMessage);
   } catch (error) {
     console.error("[GuardAIN popup]", error);
   }

@@ -1,0 +1,55 @@
+# GuardAIN production infrastructure on Render.
+# Secrets are generated or entered in the Render dashboard; never add them here.
+services:
+  - type: web
+    name: guardain-api
+    runtime: docker
+    region: singapore
+    plan: free
+    branch: codex/render-deployment
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /ready
+    autoDeployTrigger: commit
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: guardain-postgres
+          property: connectionString
+      - key: DATABASE_SSL_MODE
+        value: require
+      - key: REDIS_URL
+        fromService:
+          name: guardain-cache
+          type: keyvalue
+          property: connectionString
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: GUARDAIN_ADMIN_USERNAME
+        value: admin
+      - key: GUARDAIN_ADMIN_PASSWORD
+        sync: false
+      - key: CORS_ORIGINS
+        value: https://guardain-central-portal.vercel.app,https://guardain-central-portal-sreechakra.vercel.app
+      # Only independently validated, non-synthetic model assets may be enabled in production.
+      - key: GUARDAIN_ALLOW_SYNTHETIC_MODEL
+        value: "false"
+      - key: GUARDAIN_ONNX_INTRA_OP_THREADS
+        value: "2"
+      - key: GUARDAIN_ONNX_INTER_OP_THREADS
+        value: "1"
+
+  - type: keyvalue
+    name: guardain-cache
+    region: singapore
+    plan: free
+    ipAllowList: []
+
+databases:
+  - name: guardain-postgres
+    region: singapore
+    plan: free
+    databaseName: guardain
+    user: guardain

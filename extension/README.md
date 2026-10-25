@@ -1,56 +1,50 @@
-# Project GaurdAIN — Real-Time Cyber Fraud & UPI Mule Defense
+# GuardAIN Chrome extension: install and troubleshoot
 
-A standalone **Manifest V3 Chrome Extension** that acts as a client-side **Sensor**,
-**Offline Heuristic Engine**, and **Intervention UI**. It runs fully autonomously with
-**no backend / mock server dependency** — all detection happens on-device.
+## Install
 
----
+1. Start the local API first (`docker compose up --build` or `./start.ps1`).
+2. Open `chrome://extensions`.
+3. Turn on **Developer mode**.
+4. Select **Load unpacked** and choose this `extension` folder itself, not the
+   project root and not a ZIP file.
+5. Open the GuardAIN extension popup. Set **Central server HTTPS URL** to the
+   deployed API origin, or `http://127.0.0.1:8080` for same-laptop testing.
+6. Select **Save and test connection**. It must say `Connected`.
 
-## Files
+## If Chrome displays an extension error
 
-```
-Project/
-├── manifest.json                 # Chrome MV3 manifest (webNavigation, file:// support, 3 icons)
-├── background.js                 # MV3 service worker — offline heuristic + hard block + 8s circuit breaker
-├── content.js                    # Targeted DOM scanner + block overlay + 8s countdown
-├── popup.html / popup.js         # Dashboard UI (protection status, offline indicator, heuristic toggle)
-├── icon16.png / icon48.png / icon128.png   # Extension icons
-├── scam.html                     # Dangerous test page (KYC/digital-arrest/UPI scam keywords)
-└── safe.html                     # Benign test page (zero false positives)
-```
+1. In `chrome://extensions`, click the circular **Reload** button on GuardAIN.
+2. Click **Errors**. If an error remains, copy its complete text and the line
+   number before changing settings.
+3. Click **service worker** under GuardAIN to open its console. A cloud URL
+   failure means the backend is unavailable or its CORS list does not include
+   the portal origin; it does not mean Chrome cannot load the extension.
+4. Do not expect the extension to operate on `chrome://`, Chrome Web Store,
+   browser settings, PDF viewer pages, or other browser-restricted pages.
+5. Reload the tested web tab after reloading the extension.
 
----
+## Safe test
 
-## How It Works
+Start the API, configure the popup with `http://127.0.0.1:8080`, then open
+`http://127.0.0.1:8080/demo/extension-test`. This bundled, controlled page has
+the corroborated signals required for a warning. Do not use Google AI Studio
+or any other `google.com` subdomain for testing: safe-domain bypass means it
+will intentionally never scan or report those pages.
 
-- **Offline Heuristic Engine (`background.js`):** Classifies every page locally using
-  keyword rules for scam vectors (KYC Blocked, Digital Arrest, Fake Investment, UPI
-  Collect Requests, mule recruitment) plus WHOIS/domain-age signals. No network call.
-- **Hard Blocking:** On a `high_risk` verdict:
-  1. Fires a native Chrome notification showing the dangerous URL + reasons.
-  2. Sends a `BLOCK_PAGE` message to `content.js`, which injects a **non-dismissable**
-     full-screen overlay (`z-index: 2147483647`) covering the whole viewport.
-  3. Shows an active **8-second circuit-breaker countdown**.
-  4. After 8s, the tab is closed by the service worker.
-- **Privacy-by-Design:** only `#main`, `.chat-content`, password/tel inputs and
-  payment dialogs are scanned. PII is scrubbed locally and
-  `[data-guardain-exempt]` subtrees are never collected.
-- **Safe zones:** Google, Bing, DuckDuckGo, The Hindu, Times of India,
-  `.gov.in`, and `.nic.in` set `sessionStorage.guardain_bypass_active` and bypass scanning.
+The extension intentionally does not block a page just because it mentions
+"digital arrest". A block needs either an analyst-reviewed malicious domain or
+corroborated page facts: coercive/urgent payment or credential demand plus a
+credential/payment form plus an insecure or cross-origin form destination.
 
----
+## What the popup status means
 
-## Test It (no server — just open the file)
-
-1. Open `chrome://extensions` → enable **Developer mode** → **Load unpacked** → select this
-   folder.
-2. On the extension card, click **Details** and enable **"Allow access to file URLs"**.
-3. Double-click **`scam.html`** in this folder to open it in Chrome.
-   → You'll see a native notification, then a red block overlay with an **8-second
-   circuit-breaker countdown**, and the tab auto-closes.
-4. Double-click **`safe.html`** → you'll see a green **"✓ Looks safe"** badge and normal
-   rendering (no false positive).
-
-> **Troubleshooting:** After editing any file, reload the extension in
-> `chrome://extensions`. If scanning doesn't start, confirm "Allow access to file URLs"
-> is enabled and the heuristic toggle in the popup is ON.
+- **Connected**: the API `/health` endpoint answered.
+- **Status unknown**: the page was not eligible for scanning, was just opened,
+  or Chrome blocked content scripts on that page.
+- **Server unavailable — unverified**: a non-safe page sent a privacy-limited
+  hostname/signal check but the backend could not be reached. It is not blocked
+  automatically unless it has the same corroborated high-risk page facts that
+  the central policy requires. In that case GuardAIN warns locally and queues
+  the report for later delivery.
+- **Report queued**: a warning incident is stored locally and will retry every
+  minute. A screenshot is captured only for the visible, unchanged warning tab.

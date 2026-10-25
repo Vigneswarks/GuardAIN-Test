@@ -1,8 +1,9 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en" class="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="/config.js"></script>
   <title>GuardAIN Central Cyber Cell | Threat Intelligence & Evidence Command</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
@@ -52,10 +53,10 @@
     <div class="flex items-center space-x-3">
       <span class="inline-flex items-center text-amber-400 font-bold">
         <span class="h-2 w-2 rounded-full bg-amber-400 mr-1.5 animate-ping"></span>
-        RESTRICTED // FOR OFFICIAL LAW ENFORCEMENT &amp; CYBER CELL USE ONLY
+        GUARDAIN // AUTHORIZED OPERATORS
       </span>
       <span class="hidden md:inline text-slate-600">|</span>
-      <span class="hidden md:inline text-slate-400">CERT-In / NCRP-I4C INTERFACE DIRECTIVE</span>
+      <span class="hidden md:inline text-slate-400">FINANCIAL FRAUD TRIAGE</span>
     </div>
     <div class="flex items-center space-x-4 font-mono text-slate-400">
       <span id="liveClockUtc">UTC 00:00:00</span>
@@ -79,9 +80,9 @@
           <div>
             <div class="flex items-center space-x-2">
               <h1 class="text-lg font-extrabold tracking-tight text-slate-100 uppercase">GuardAIN <span class="text-cyan-400">Cyber Cell</span></h1>
-              <span class="rounded bg-cyan-950 px-1.5 py-0.5 text-[10px] font-mono font-bold text-cyan-400 border border-cyan-800/60">v4.2-PRO</span>
+              <span class="rounded bg-cyan-950 px-1.5 py-0.5 text-[10px] font-mono font-bold text-cyan-400 border border-cyan-800/60">v2.0</span>
             </div>
-            <p class="text-xs text-slate-400">National Cyber Crime Threat Intelligence &amp; Evidence Command</p>
+            <p class="text-xs text-slate-400">Central incident review and domain intelligence</p>
           </div>
         </div>
 
@@ -90,11 +91,11 @@
           <div class="flex items-center space-x-2">
             <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
             <span class="text-slate-400">TELEMETRY STREAM:</span>
-            <span class="text-emerald-400 font-bold">ONLINE</span>
+            <span id="telemetryStatus" class="text-slate-400 font-bold">CHECKING</span>
           </div>
           <div class="flex items-center space-x-2">
             <svg class="w-4 h-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-            <span class="text-slate-400">SEC 65B BSA ENGINE:</span>
+            <span class="text-slate-400">EVIDENCE FORMAT:</span>
             <span class="text-cyan-400 font-bold">ACTIVE</span>
           </div>
         </div>
@@ -137,14 +138,14 @@
               </svg>
             </div>
             <h2 class="text-2xl font-bold tracking-tight text-white">Administrator Authentication</h2>
-            <p class="text-xs text-slate-400">Enter authorized operational credentials to access live incident command. Seed account: admin / admin@26</p>
+            <p class="text-xs text-slate-400">Enter authorized operational credentials to access live incident command.</p>
           </div>
 
           <form id="loginForm" class="space-y-4">
             <div>
               <label for="username" class="block text-xs font-mono font-medium text-slate-300 mb-1">OFFICER IDENTIFIER / USERNAME</label>
               <div class="relative">
-                <input id="username" class="w-full rounded-xl border border-slate-800 bg-slate-950/90 p-3.5 pl-10 text-sm text-slate-100 placeholder-slate-600 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 transition font-mono" autocomplete="username" value="admin" placeholder="admin" required />
+                <input id="username" class="w-full rounded-xl border border-slate-800 bg-slate-950/90 p-3.5 pl-10 text-sm text-slate-100 placeholder-slate-600 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 transition font-mono" autocomplete="username" placeholder="Enter your username" required />
                 <svg class="w-4 h-4 absolute left-3.5 top-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
               </div>
             </div>
@@ -152,7 +153,7 @@
             <div>
               <label for="password" class="block text-xs font-mono font-medium text-slate-300 mb-1">ENCRYPTED CLEARANCE PASSCODE</label>
               <div class="relative">
-                <input id="password" class="w-full rounded-xl border border-slate-800 bg-slate-950/90 p-3.5 pl-10 text-sm text-slate-100 placeholder-slate-600 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 transition font-mono" type="password" autocomplete="current-password" value="admin@26" placeholder="admin@26" required />
+                <input id="password" class="w-full rounded-xl border border-slate-800 bg-slate-950/90 p-3.5 pl-10 text-sm text-slate-100 placeholder-slate-600 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 transition font-mono" type="password" autocomplete="current-password" placeholder="Enter your passcode" required />
                 <svg class="w-4 h-4 absolute left-3.5 top-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
               </div>
             </div>
@@ -166,7 +167,7 @@
           <p id="loginStatus" class="mt-4 text-center text-xs font-mono font-semibold text-rose-400 min-h-[1.25rem]"></p>
 
           <div class="mt-6 pt-6 border-t border-slate-800/80 text-[11px] text-slate-500 text-center leading-relaxed">
-            Unauthorized access or attempt to bypass authentication is punishable under Section 66 &amp; 70 of Information Technology Act, 2000. All active IP sessions logged &amp; geo-traced.
+            Authorized operators only. Access is controlled by the central API.
           </div>
         </div>
 
@@ -175,6 +176,25 @@
 
     <!-- ==================== MAIN DASHBOARD VIEW ==================== -->
     <section id="dashboard" class="hidden space-y-6">
+      <div class="rounded-2xl border border-cyan-800 bg-slate-900 p-5 space-y-3">
+        <h2 class="text-xl font-bold">Risk verification workspace</h2>
+        <p class="text-sm text-slate-400">Analyze a submitted message. Text risk is advisory; page blocking requires supporting evidence. Model scores are not proof of fraud.</p>
+        <textarea id="triageMessage" rows="3" class="w-full rounded-lg bg-slate-950 p-3" placeholder="Paste a message for contextual analysis"></textarea>
+        <button id="triageRun" class="rounded-lg bg-cyan-500 px-4 py-2 text-slate-950">Analyze message</button>
+        <pre id="triageResult" class="whitespace-pre-wrap text-sm text-slate-300" aria-live="polite"></pre>
+      </div>
+      <div class="rounded-2xl border border-slate-800 bg-slate-900 p-5 space-y-3">
+        <h2 class="text-xl font-bold">Domain review queue</h2>
+        <p class="text-sm text-slate-400">Reports are unverified observations. Confirm malicious domains after investigation, or mark false positives safe. Configured safe domains cannot be blocked.</p>
+        <div id="domainQueue" class="overflow-auto max-h-80"></div>
+        <form id="domainReviewForm" class="flex flex-wrap gap-3">
+          <input id="reviewDomain" required placeholder="example.com" class="rounded-lg bg-slate-950 p-2" />
+          <select id="reviewStatus" class="rounded-lg bg-slate-950 p-2"><option value="pending">Pending investigation</option><option value="malicious">Confirmed malicious</option><option value="safe">Reviewed safe</option></select>
+          <input id="reviewReason" required minlength="5" placeholder="Investigation evidence / reason" class="rounded-lg bg-slate-950 p-2 flex-1" />
+          <button class="rounded-lg bg-cyan-500 px-4 py-2 text-slate-950">Save review</button>
+        </form>
+        <p id="reviewFeedback" aria-live="polite" class="text-sm text-cyan-300"></p>
+      </div>
 
       <!-- Executive Telemetry Metrics Bar -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -191,7 +211,7 @@
             </div>
           </div>
           <div class="mt-3 flex items-center text-xs text-slate-400 font-mono">
-            <span class="text-cyan-400 mr-1">●</span> Active SOC Telemetry Stream
+            <span class="text-cyan-400 mr-1">&#9679;</span> Active SOC Telemetry Stream
           </div>
         </div>
 
@@ -223,23 +243,23 @@
             </div>
           </div>
           <div class="mt-3 flex items-center text-xs text-slate-400 font-mono">
-            <span class="text-emerald-400 mr-1">✓</span> Approved Entities / VPAs
+            <span class="text-emerald-400 mr-1">&#10003;</span> Approved Entities / VPAs
           </div>
         </div>
 
-        <!-- Metric 4: Legal Evidence Certs -->
+        <!-- Metric 4: Shared domain intelligence -->
         <div class="rounded-2xl border border-slate-800 bg-cyber-900/80 p-5 backdrop-blur-md relative overflow-hidden group hover:border-amber-500/50 transition">
           <div class="flex justify-between items-start">
             <div>
-              <p class="text-xs font-mono font-medium text-slate-400 uppercase tracking-wider">Sec 65B BSA Compliance</p>
-              <h3 class="text-xl font-extrabold text-amber-400 mt-3 font-mono">VERIFIED</h3>
+              <p class="text-xs font-mono font-medium text-slate-400 uppercase tracking-wider">Cloud Domain Intelligence</p>
+              <h3 id="statThreatDomains" class="text-3xl font-extrabold text-amber-400 mt-2 font-mono">0</h3>
             </div>
             <div class="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
               <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
             </div>
           </div>
           <div class="mt-3 flex items-center text-xs text-slate-400 font-mono">
-            <span class="text-amber-400 mr-1">⚡</span> SHA-256 Hash Engine Ready
+            <span id="modelEngine" class="text-amber-400">MODEL STATUS CHECKING</span>
           </div>
         </div>
 
@@ -282,12 +302,12 @@
             <div class="flex items-center space-x-2">
               <button id="evidence" class="rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 px-3.5 py-2.5 text-xs font-bold text-slate-950 transition flex items-center space-x-1.5 shadow-md shadow-amber-500/10">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                <span>65B Dossier PDF</span>
+                <span>Incident PDF</span>
               </button>
 
               <button id="ncrp" class="rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 px-3.5 py-2.5 text-xs font-bold text-white transition flex items-center space-x-1.5 shadow-md shadow-violet-500/10">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                <span>Export NCRP / I4C</span>
+                <span>Export JSON</span>
               </button>
             </div>
 
@@ -373,7 +393,7 @@
 
           <div class="pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-mono text-slate-500">
             <span>SEC-DES DIGEST: SHA256 READY</span>
-            <span>INDIAN EVIDENCE ACT 65B VALIDATED</span>
+            <span>OPERATOR REVIEW REQUIRED</span>
           </div>
         </div>
 
@@ -399,7 +419,10 @@
         <div class="text-xs text-slate-400 font-mono flex justify-between">
           <span>SHA-256 Digest Hash:</span>
           <span id="modalHash" class="text-cyan-400 font-bold">---</span>
+          <span id="evidenceBadge" class="rounded-full border border-slate-700 px-2 py-0.5 text-[10px] text-slate-400">UNVERIFIED</span>
         </div>
+        <div id="whoisCard" class="rounded-xl border border-slate-800 bg-slate-950 p-3 text-xs text-cyan-200">WHOIS enrichment pending...</div>
+        <canvas id="modalScreenshot" class="hidden max-h-72 w-full rounded-xl border border-slate-800 bg-black" aria-label="Captured incident screenshot"></canvas>
         <pre id="modalJson" class="rounded-xl border border-slate-800 bg-slate-950 p-4 text-xs font-mono text-emerald-400 overflow-x-auto max-h-80 selection:bg-emerald-900"></pre>
       </div>
       <div class="p-4 border-t border-slate-800 bg-slate-950/50 flex justify-end">
@@ -413,17 +436,25 @@
   <!-- Official Footer -->
   <footer class="mt-12 border-t border-slate-800/80 bg-slate-950/80 py-6 text-center text-xs text-slate-500 font-mono">
     <div class="mx-auto max-w-7xl px-4 space-y-2">
-      <p>GuardAIN Cyber Intelligence Engine &bull; Section 65B BSA Certified Evidence Pipeline</p>
-      <p class="text-slate-600">Cyber Crime Coordination Unit &bull; Confidential &amp; Proprietary &bull; All Access Audited</p>
+      <p>GuardAIN Cyber Intelligence Engine &bull; Incident evidence review</p>
+      <p class="text-slate-600">Cyber Crime Coordination Unit &bull; Confidential &amp; Proprietary &bull; Restricted operator access</p>
     </div>
   </footer>
 
   <!-- Application Logic -->
   <script>
     const $ = id => document.getElementById(id);
-    const apiBase = () => (sessionStorage.getItem('guardainApiUrl') || 'http://127.0.0.1:8080').replace(/\/+$/, '');
+    // A hosted portal cannot use its own Vercel origin as the FastAPI service.
+    // Local development continues to use the same origin automatically.
+    const apiBase = () => {
+      const configured = window.GUARDAIN_API_URL || sessionStorage.getItem('guardainApiUrl');
+      if (configured) return configured.replace(/\/+$/, '');
+      if (['localhost', '127.0.0.1'].includes(window.location.hostname)) return window.location.origin;
+      return '';
+    };
     let token = sessionStorage.getItem('guardainAdminToken') || '';
     let currentIncidents = [];
+    let currentDomains = [];
 
     // Safe HTML Escaper against XSS
     function escapeHtml(str) {
@@ -458,10 +489,14 @@
 
     // API Handler with standard session protection
     async function api(path, options = {}) {
+      const base = apiBase();
+      if (!base) {
+        throw new Error('Central API is not configured. Deploy the GuardAIN FastAPI backend to a public HTTPS URL, then set GUARDAIN_API_URL in config.js and redeploy this portal.');
+      }
       const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
       if (token) headers.Authorization = `Bearer ${token}`;
 
-      const response = await fetch(`${apiBase()}${path}`, { ...options, headers });
+      const response = await fetch(`${base}${path}`, { ...options, headers });
       
       if (response.status === 401) {
         handleLogout();
@@ -503,8 +538,18 @@
 
     async function refresh() {
       logAudit('Polling API telemetry endpoints...');
-      const data = await api('/v1/admin/incidents');
+      const [data, domainData, health] = await Promise.all([
+        api('/v1/admin/incidents'),
+        api('/v1/admin/domains?limit=500'),
+        api('/health')
+      ]);
       currentIncidents = data.incidents || [];
+      currentDomains = domainData.domains || [];
+      $('domainQueue').innerHTML = currentDomains.length ? `<table class="w-full text-sm text-left"><thead><tr><th>Domain</th><th>Observed score</th><th>Review</th><th>Reports</th></tr></thead><tbody>${currentDomains.map(item => `<tr class="border-t border-slate-800"><td class="py-3">${escapeHtml(item.domain)}</td><td>${Number(item.threat_score).toFixed(2)}</td><td>${escapeHtml(item.review_status || 'pending')}</td><td>${Number(item.observation_count)}</td></tr>`).join('')}</tbody></table>` : 'No domain observations yet.';
+      $('statThreatDomains').textContent = currentDomains.filter(item => Number(item.threat_score) >= 0.45).length;
+      $('telemetryStatus').textContent = health.database ? 'ONLINE' : 'DEGRADED';
+      $('telemetryStatus').className = health.database ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold';
+      $('modelEngine').textContent = health.inference?.model_loaded ? 'MuRIL ONNX ACTIVE' : 'HEURISTIC FALLBACK';
       
       updateMetrics();
       renderTable();
@@ -539,7 +584,7 @@
 
       const filtered = currentIncidents.filter(i => {
         const score = Number(i.threat_score) || 0;
-        const suspect = (i.payload?.domain || i.payload?.vpa || '').toLowerCase();
+        const suspect = (i.payload?.domain || i.payload?.vpa || i.payload?.url || i.url || '').toLowerCase();
         
         let matchesSev = true;
         if (severityFilter === 'CRITICAL') matchesSev = score >= 0.8;
@@ -569,7 +614,7 @@
           sevBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30">HIGH</span>';
         }
 
-        const suspect = i.payload?.domain || i.payload?.vpa || 'Redacted / Unspecified Target';
+        const suspect = i.payload?.domain || i.payload?.vpa || i.payload?.url || i.url || 'Redacted / Unspecified Target';
         const timestamp = i.created_at ? new Date(i.created_at).toLocaleString('en-IN') : 'N/A';
 
         return `
@@ -579,7 +624,7 @@
             <td class="p-4 text-slate-200 font-bold">${score.toFixed(2)}</td>
             <td class="p-4 text-cyan-300 font-bold tracking-wide">${escapeHtml(suspect)}</td>
             <td class="p-4">
-              <button onclick="inspectPayload(${index})" class="rounded bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 text-[11px] border border-slate-700 transition flex items-center space-x-1">
+              <button data-inspect-id="${escapeHtml(i.id || '')}" class="rounded bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 text-[11px] border border-slate-700 transition flex items-center space-x-1">
                 <span>View Raw JSON</span>
               </button>
             </td>
@@ -598,10 +643,13 @@
           if (value) addWhitelist(value, 'SOC Officer manually flagged false positive');
         };
       });
+      document.querySelectorAll('[data-inspect-id]').forEach(button => {
+        button.onclick = () => inspectPayload(button.dataset.inspectId);
+      });
     }
 
-    async function inspectPayload(index) {
-      const item = currentIncidents[index];
+    async function inspectPayload(incidentId) {
+      const item = currentIncidents.find(incident => incident.id === incidentId);
       if (!item) return;
       const jsonStr = JSON.stringify(item.payload || {}, null, 2);
       const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(jsonStr));
@@ -609,6 +657,32 @@
 
       $('modalHash').textContent = hash;
       $('modalJson').textContent = jsonStr;
+      const payload = item.payload || {};
+      const whois = item.whois || payload.whois || {};
+      $('whoisCard').textContent = `WHOIS: ${whois.domain || 'unavailable'} | Registrar: ${whois.registrar || 'unknown'} | Created: ${whois.creation_date || 'unknown'} | Age: ${whois.age_days ? whois.age_days + ' days' : 'unknown'}`;
+      const screenshot = payload.screenshot_base64 || item.screenshot_base64;
+      const canvas = $('modalScreenshot');
+      canvas.classList.toggle('hidden', !screenshot);
+      const expectedHash = item.screenshot_hash || payload.screenshot_hash;
+      if (screenshot) {
+        const dataUrl = screenshot.startsWith('data:') ? screenshot : `data:image/png;base64,${screenshot}`;
+        const image = new Image();
+        image.onload = async () => {
+          canvas.width = image.naturalWidth;
+          canvas.height = image.naturalHeight;
+          canvas.getContext('2d').drawImage(image, 0, 0);
+          const bytes = Uint8Array.from(atob(dataUrl.split(',', 2)[1]), character => character.charCodeAt(0));
+          const digest = await crypto.subtle.digest('SHA-256', bytes);
+          const actualHash = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+          $('evidenceBadge').textContent = expectedHash && actualHash === expectedHash ? 'SHA-256 VERIFIED' : 'HASH MISMATCH';
+          $('evidenceBadge').className = expectedHash && actualHash === expectedHash
+            ? 'rounded-full border border-emerald-500/40 px-2 py-0.5 text-[10px] text-emerald-400'
+            : 'rounded-full border border-rose-500/40 px-2 py-0.5 text-[10px] text-rose-400';
+        };
+        image.src = dataUrl;
+      } else {
+        $('evidenceBadge').textContent = 'NO SCREENSHOT';
+      }
       $('payloadModal').classList.remove('hidden');
     }
 
@@ -619,6 +693,21 @@
     }
 
     // Event Bindings
+    $('triageRun').onclick = async () => {
+      $('triageResult').textContent = 'Analyzing…';
+      try {
+        const result = await api('/v1/analyzer/message', {method: 'POST', body: JSON.stringify({message: $('triageMessage').value})});
+        $('triageResult').textContent = `${result.engine}\nRisk: ${result.risk_level} · score ${Number(result.score).toFixed(2)}\nSignals: ${(result.key_trigger_words || []).join(', ') || 'none'}\nThis result does not automatically block a domain.`;
+      } catch (error) { $('triageResult').textContent = error.message; }
+    };
+    $('domainReviewForm').onsubmit = async event => {
+      event.preventDefault();
+      try {
+        await api('/v1/admin/domains/review', {method: 'POST', body: JSON.stringify({domain: $('reviewDomain').value.trim(), status: $('reviewStatus').value, reason: $('reviewReason').value.trim()})});
+        $('reviewFeedback').textContent = 'Review saved. New scans will use this decision.';
+        await refresh();
+      } catch (error) { $('reviewFeedback').textContent = error.message; }
+    };
     $('loginForm').onsubmit = async event => {
       event.preventDefault();
       $('loginStatus').textContent = '';
@@ -676,8 +765,8 @@
       pdf.text('GUARDAIN CENTRAL CYBER CRIME CELL', 105, 20, { align: 'center' });
       
       pdf.setFontSize(11);
-      pdf.text('CERTIFICATE OF ELECTRONIC EVIDENCE UNDER SECTION 65B', 105, 27, { align: 'center' });
-      pdf.text('BHARATIYA SAKSHYA ADHINIYAM (BSA), 2023 / INDIAN EVIDENCE ACT', 105, 33, { align: 'center' });
+      pdf.text('INCIDENT EVIDENCE SUMMARY', 105, 27, { align: 'center' });
+      pdf.text('OPERATOR REVIEW REQUIRED - NOT A LEGAL CERTIFICATE', 105, 33, { align: 'center' });
 
       pdf.setLineWidth(0.5);
       pdf.line(15, 38, 195, 38);
@@ -709,7 +798,7 @@
 
       pdf.setFont('helvetica', 'italic');
       pdf.setFontSize(8);
-      pdf.text('This document is cryptographically hashed and digitally generated for official law enforcement submission.', 105, 285, { align: 'center' });
+      pdf.text('Generated incident summary. Hashes identify bytes; they do not establish legal validity.', 105, 285, { align: 'center' });
 
       pdf.save(`guardain-section65b-dossier-${item.id || 'export'}.pdf`);
     };
@@ -718,7 +807,7 @@
       logAudit('Exporting incident dataset formatted for NCRP / I4C schema.');
       download(
         'guardain-ncrp-i4c-export.json',
-        JSON.stringify({ schema: 'NCRP-I4C-2026-01', exported_at: new Date().toISOString(), incidents: currentIncidents }, null, 2),
+        JSON.stringify({ schema: 'guardain-incident-export-v1', exported_at: new Date().toISOString(), incidents: currentIncidents }, null, 2),
         'application/json'
       );
     };
