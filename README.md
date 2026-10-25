@@ -1,415 +1,119 @@
-# GuardAIN - Central Police Cyber Cell Portal
+# GuardAIN V2
 
-![Status](https://img.shields.io/badge/status-production%20ready-brightgreen)
-![Python](https://img.shields.io/badge/python-3.10+-blue)
-![FastAPI](https://img.shields.io/badge/framework-fastapi-success)
+GuardAIN is a cloud-ready cyber-threat interception platform focused on:
 
-A **professional-grade threat intelligence platform** designed for central police cyber cells to scan URLs, analyze threats, and maintain cybersecurity operations.
+- MuRIL/ONNX Hinglish and Devanagari message analysis.
+- Central incident reporting with screenshot, DOM hash, browser metadata, and
+  WHOIS/DNS enrichment.
+- A Chrome Manifest V3 extension with safe-domain bypass, targeted scanning,
+  session override, screenshot capture, and an 8-second circuit breaker.
+- A JWT/bcrypt-protected central admin portal.
+- A mobile PWA for message, URL, and UPI/VPA triage.
+- PostgreSQL persistence with SQLite local fallback and Redis verification
+  caching.
 
-## 🎯 Key Features
+## Fastest local start
 
-- 🔐 **Secure Authentication** - Police cybercell-themed login system (admin/admin@26)
-- 🔍 **URL Threat Scanning** - Real-time malicious URL detection
-- 📊 **Live Dashboard** - Monitor threat statistics and scan history
-- 🚀 **RESTful API** - Easy integration with external systems
-- 🎨 **Professional UI** - Modern cybersecurity aesthetic with police theme
-- 🔌 **Database Ready** - PostgreSQL & Redis integration
-- 🐳 **Docker Support** - Production-ready containerization
-- ⚡ **High Performance** - Built with FastAPI
+### Docker with PostgreSQL and Redis
 
-## 🚀 Quick Start (60 seconds)
+Start Docker Desktop, then run from the repository root:
 
-### Windows Users - Easiest Method
-```bash
-# Just double-click one of these:
-start.bat              # Command Prompt
-# OR right-click start.ps1 > Run with PowerShell
+```powershell
+docker compose up -d --build
 ```
 
-### Manual Setup
-```bash
-# 1. Create & activate virtual environment
-python -m venv .venv
-.venv\Scripts\activate.bat
+Open:
 
-# 2. Install dependencies
-pip install -r backend\requirements.txt
+- Admin portal: <http://127.0.0.1:8080/>
+- PWA: <http://127.0.0.1:8080/pwa/>
+- API health: <http://127.0.0.1:8080/health>
+- Swagger: <http://127.0.0.1:8080/docs>
 
-# 3. Run the server
-python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8080 --reload
+The local Compose credentials are `admin` / `admin@26`. Replace them before
+any shared deployment.
+
+### Local Python fallback
+
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r backend\requirements.txt
+python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8080
 ```
 
-### Access Portal
-```
-🌐 Open: http://localhost:8080
-👤 Username: admin
-🔑 Password: admin@26
-```
+This uses SQLite if PostgreSQL is unavailable and continues without Redis.
 
-## 📋 System Requirements
+## Core API
 
-- Windows 10+, macOS, or Linux
-- Python 3.10+
-- 2GB RAM, 500MB disk space
-- Internet browser
-
-## 🎨 Admin Portal Features
-
-### 🔐 Login Screen
-- Clean, professional police cybercell theme
-- Secure admin authentication
-- Default credentials: `admin` / `admin@26`
-
-### 📊 Dashboard
-- **Total Scans** - All URLs scanned
-- **Safe URLs** - Legitimate websites  
-- **Dangerous URLs** - Malicious threats detected
-- **Success Rate** - System accuracy percentage
-
-### 🔍 Threat Scanner
-- Input URL to scan
-- Real-time threat analysis
-- Results show:
-  - ✅ SAFE with 0/10 threat score
-  - ⚠️ DANGEROUS with threat score (1-10)
-  - Detailed threat information
-
-### 📜 Scan History
-- Recent scans displayed
-- Status indicators (SAFE/DANGER)
-- Quick reference for patterns
-
-## 🔌 API Endpoints
-
-### 1. Health Check
-```bash
-curl http://localhost:8080/health
-
-# Response:
-{
-  "status": "online",
-  "service": "guardain-api"
-}
+```text
+POST /v1/admin/login
+GET  /v1/verify
+POST /v1/verify
+POST /v1/analyzer/vpa
+POST /v1/reports/incidents
+POST /v1/telemetry
+GET  /v1/admin/incidents
+GET  /health
 ```
 
-### 2. Scan URL
-```bash
-curl -X POST http://localhost:8080/api/scan \
-  -H "Content-Type: application/json" \
-  -d '{"url": "https://example.com"}'
+Incident reports are authenticated only when reading the admin feed. High-risk
+extension telemetry is accepted, enriched asynchronously, and persisted.
+Every extension scan also performs a privacy-limited central check using only
+the hostname and local risk labels. The resulting URL/domain observation is
+upserted into the shared database and becomes available to every connected
+extension and the administrator domain-intelligence view.
 
-# Response:
-{
-  "url": "https://example.com",
-  "status": "safe",
-  "threat_score": 0,
-  "details": "URL appears safe",
-  "timestamp": "2024-01-01T12:00:00"
-}
+## Chrome extension
+
+1. Open `chrome://extensions`.
+2. Enable Developer mode.
+3. Choose **Load unpacked**.
+4. Select the [extension/](./extension) directory.
+5. Set the cloud API URL:
+
+```javascript
+chrome.storage.local.set({ guardainApiBaseUrl: "https://api.example.com" });
 ```
 
-### 3. Get Statistics
-```bash
-curl http://localhost:8080/api/stats
+The extension bypasses Google, Bing, DuckDuckGo, verified news portals,
+`.gov.in`, and `.nic.in`. It scans only interactive scopes, honors
+`sessionStorage.guardain_bypass_active`, captures high-risk tabs, uploads
+scrubbed telemetry, and closes the tab after the emergency countdown.
 
-# Response:
-{
-  "total_scans": 42,
-  "safe_scans": 38,
-  "dangerous_scans": 4,
-  "success_rate": 90,
-  "uptime": "online"
-}
-```
+## MuRIL model
 
-## 🗄️ Database Setup (Optional but Recommended)
+The inference service uses a fine-tuned local ONNX/tokenizer when available and
+falls back to deterministic classification when unavailable. Model binaries are
+intentionally excluded from Git because the ONNX data file is very large. Run
+`dataset_generator.py`, `train_muril.py`, and then `export_onnx.py`; exporting
+the untrained base MuRIL classification head is explicitly rejected.
+The dataset utility is [ai_pipeline/dataset_generator.py](./ai_pipeline/dataset_generator.py).
 
-### PostgreSQL Integration
-```bash
-# 1. Install PostgreSQL from https://www.postgresql.org/download/
+## Cloud deployment
 
-# 2. Create database
-psql -U postgres
-CREATE DATABASE guardain;
-CREATE USER guardain_user WITH PASSWORD 'secure_password';
-GRANT ALL PRIVILEGES ON DATABASE guardain TO guardain_user;
+Use [HOW_TO_IMPLEMENT_CLOUD.md](./HOW_TO_IMPLEMENT_CLOUD.md) for managed
+PostgreSQL, managed Redis, Docker registry publishing, HTTPS/CORS, static
+portal/PWA hosting, extension configuration, secrets, monitoring, and backups.
 
-# 3. Update environment
-set DATABASE_URL=postgresql://guardain_user:secure_password@localhost/guardain
-```
+Required production values:
 
-### Redis Integration
-```bash
-# 1. Install Redis from https://redis.io/download
-
-# 2. Start Redis
-redis-server
-
-# 3. Set environment
-set REDIS_URL=redis://localhost:6379/0
-```
-
-## 🐳 Docker Deployment
-
-```bash
-# Build and start everything
-docker-compose up -d
-
-# Check services running
-docker-compose ps
-
-# View API logs
-docker-compose logs -f api
-
-# Stop all services
-docker-compose down
-```
-
-## 📁 Project Structure
-
-```
-GuardAIN/
-├── 📂 admin_portal/
-│   ├── index.html              ← Admin portal UI
-│   └── index.html.bak          ← Backup
-│
-├── 📂 backend/
-│   ├── 📂 app/
-│   │   ├── api.py              ← Scan & API logic
-│   │   ├── main.py             ← Server entry point
-│   │   ├── config.py           ← Configuration
-│   │   ├── security.py         ← Auth utilities
-│   │   └── __init__.py
-│   │
-│   └── requirements.txt         ← Python packages
-│
-├── 📂 data/                    ← Data storage
-├── docker-compose.yml          ← Docker config
-├── Dockerfile                  ← Container definition
-├── start.bat                   ← Windows startup
-├── start.ps1                   ← PowerShell startup
-├── test_setup.py              ← Verification
-├── SETUP_GUIDE.md             ← Detailed guide
-└── README.md                   ← This file
-```
-
-## 🔐 Security Credentials
-
-| Item | Default Value |
-|------|---------------|
-| Admin Username | `admin` |
-| Admin Password | `admin@26` |
-
-⚠️ **IMPORTANT**: Change default credentials before production!
-
-## 🛠️ Configuration
-
-### Environment Variables
-
-```bash
-# Server config
-PORT=8080
-HOST=0.0.0.0
-ENVIRONMENT=development
-LOG_LEVEL=info
-
-# Admin credentials
-GUARDAIN_ADMIN_PASSWORD=admin@26
-
-# Database (optional)
-DATABASE_URL=postgresql://user:pass@localhost/guardain
-
-# Caching (optional)
-REDIS_URL=redis://localhost:6379/0
-
-# JWT (security)
-JWT_SECRET_KEY=your_secret_key_here
-```
-
-## 🧪 Verify Installation
-
-Run the verification script:
-```bash
-python test_setup.py
-```
-
-Checks:
-- ✅ Python 3.10+
-- ✅ All dependencies installed
-- ✅ Project structure complete
-- ✅ API responding
-- ✅ Portal accessible
-- ✅ Scanning works
-
-## 🚨 Troubleshooting
-
-### Port 8080 Already in Use
-```bash
-# Find what's using port 8080
-netstat -ano | findstr :8080
-
-# Kill the process (replace PID)
-taskkill /PID <PID> /F
-
-# Or use different port
-uvicorn backend.app.main:app --port 8081
-```
-
-### Python Not Found
-1. Download Python 3.10+ from https://www.python.org
-2. Check "Add Python to PATH" during installation
-3. Restart terminal and try again
-
-### Module Import Errors
-```bash
-# Reinstall packages
-pip install --upgrade -r backend/requirements.txt
-pip cache purge
-```
-
-### API Won't Start
-```bash
-# Check if dependencies are installed
-pip list | findstr fastapi uvicorn pydantic
-
-# Reinstall if missing
-pip install -r backend/requirements.txt
-```
-
-## 📊 Test URLs
-
-Try these to test the scanner:
-
-| URL | Expected Result |
-|-----|-----------------|
-| `https://google.com` | ✅ SAFE |
-| `https://github.com` | ✅ SAFE |
-| `https://malicious.com` | ⚠️ DANGEROUS |
-| `https://phishing.site` | ⚠️ DANGEROUS |
-| `http://unencrypted.com` | ⚠️ DANGEROUS |
-
-## 🔄 Development
-
-### Making Changes
-
-1. Edit files (auto-reloads with `--reload` flag)
-2. Portal HTML: `admin_portal/index.html`
-3. API logic: `backend/app/api.py`
-4. Server config: `backend/app/main.py`
-
-### Testing Changes
-
-```bash
-# Run verification
-python test_setup.py
-
-# Or test manually
-curl http://localhost:8080/health
-```
-
-## 🚀 Production Deployment
-
-### Checklist
-- [ ] Change admin password
-- [ ] Set ENVIRONMENT=production
-- [ ] Configure PostgreSQL
-- [ ] Configure Redis
-- [ ] Enable HTTPS/SSL
-- [ ] Set strong JWT secret
-- [ ] Configure firewall
-- [ ] Setup monitoring
-- [ ] Configure backups
-
-### Deploy with Docker
-```bash
-# Create .env file with production settings
+```text
 ENVIRONMENT=production
-GUARDAIN_ADMIN_PASSWORD=your_secure_password
 DATABASE_URL=postgresql://...
-REDIS_URL=redis://...
-
-# Run services
-docker-compose up -d
+REDIS_URL=rediss://...
+JWT_SECRET_KEY=<at least 32 random characters>
+GUARDAIN_ADMIN_PASSWORD=<at least 12 random characters>
+CORS_ORIGINS=https://admin.example.com,https://pwa.example.com
 ```
 
-## 📚 Additional Documentation
+## Project layout
 
-- **Detailed Setup**: See [SETUP_GUIDE.md](./SETUP_GUIDE.md)
-- **API Reference**: See inline API docs at `http://localhost:8080/docs`
-- **FastAPI**: https://fastapi.tiangolo.com
-- **Uvicorn**: https://www.uvicorn.org
-
-## 💡 Tips & Tricks
-
-```bash
-# Run without auto-reload (faster)
-uvicorn backend.app.main:app --port 8080
-
-# Run in background
-# Windows: Use Task Scheduler or create .bat script
-# Linux/Mac: nohup python -m uvicorn backend.app.main:app &
-
-# View API docs
-# Swagger UI: http://localhost:8080/docs
-# ReDoc: http://localhost:8080/redoc
-
-# Update dependencies
-pip install --upgrade -r backend/requirements.txt
+```text
+backend/       FastAPI, auth, database, WHOIS, MuRIL inference
+extension/     Manifest V3 extension and emergency response flow
+admin_portal/  Central incident dashboard and evidence export
+pwa/           Mobile message, URL, and VPA triage
+ai_pipeline/   MuRIL export and dataset generation
+docker-compose.yml
+Dockerfile
 ```
-
-## ❓ FAQ
-
-**Q: I forgot the password?**
-A: Default is always `admin@26`. Check `backend/app/api.py` for admin login logic.
-
-**Q: Can this run on a public server?**
-A: Yes, but you MUST configure HTTPS, firewall, change credentials, and use database.
-
-**Q: How do I backup scan history?**
-A: Setup PostgreSQL and configure backups, or export via API.
-
-**Q: What's the throughput?**
-A: FastAPI handles 1000+ requests/sec on standard hardware.
-
-**Q: Can I add custom threat rules?**
-A: Yes! Modify `ThreatDatabase` class in `backend/app/api.py`.
-
-**Q: How do I access it from other computers?**
-A: Use the server's IP: `http://<server-ip>:8080` (ensure firewall allows it).
-
-## 🤝 Support
-
-For issues:
-1. Check [SETUP_GUIDE.md](./SETUP_GUIDE.md)
-2. Run `python test_setup.py`
-3. Review troubleshooting section above
-4. Check error messages in terminal
-
-## 📝 License
-
-GuardAIN - Central Police Cyber Cell  
-© 2024 - All Rights Reserved
-
-Proprietary software. Unauthorized use prohibited.
-
----
-
-**Version**: 1.0.0  
-**Status**: ✅ Production Ready  
-**Last Updated**: 2024
-
----
-
-## 🎉 You're All Set!
-
-```
-✅ Admin Portal Ready
-✅ API Running
-✅ Scanner Active
-✅ Authentication Enabled
-
-🌐 Open: http://localhost:8080
-🔐 Login: admin / admin@26
-```
-
-**Ready to secure the digital frontier! 🛡️**

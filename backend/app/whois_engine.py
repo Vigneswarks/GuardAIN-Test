@@ -37,6 +37,13 @@ def _lookup(domain: str) -> dict[str, Any]:
             "registrar": getattr(record, "registrar", None),
             "name_servers": sorted({str(item).lower() for item in (getattr(record, "name_servers", None) or [])}),
         })
+        created = getattr(record, "creation_date", None)
+        if created:
+            created_value = created[0] if isinstance(created, (list, tuple)) else created
+            if isinstance(created_value, datetime):
+                result["age_days"] = max(0, (datetime.now(created_value.tzinfo) - created_value).days)
+            elif isinstance(created_value, date):
+                result["age_days"] = max(0, (date.today() - created_value).days)
     except Exception as exc:  # lookup failures must not fail incident intake
         result["error"] = str(exc)
     return result

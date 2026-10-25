@@ -1,15 +1,16 @@
 /* GuardAIN content scanner: narrow, privacy-first DOM collection. */
 let warningShown = false;
 let scanTimer = null;
-let observer;
+let userBypass = false;
+const scopeObservers = new Map();
 
 const SAFE_ZONES = [
-  "google.com", "bing.com", "duckduckgo.com", "thehindu.com",
+  "google.com", "google.co.in", "bing.com", "duckduckgo.com", "thehindu.com",
   "timesofindia.indiatimes.com", "gov.in", "nic.in"
 ];
 
 function isSafeZone(host = location.hostname) {
-  const normalized = host.toLowerCase().replace(/^www\./, "");
+  const normalized = host.toLowerCase().replace(/\.$/, "");
   return SAFE_ZONES.some(domain => normalized === domain || normalized.endsWith(`.${domain}`));
 }
 
@@ -23,16 +24,11 @@ function markBypass(active) {
 }
 
 function bypassActive() {
-  if (document.documentElement?.getAttribute("data-guardain-exempt") === "true") return true;
-  try {
-    return sessionStorage.getItem("guardain_bypass_active") === "true";
-  } catch (_) {
-    return false;
-  }
+  return userBypass || isSafeZone();
 }
 
 function exempt(element) {
-  return bypassActive() || element.closest?.("[data-guardain-exempt]") != null;
+  return bypassActive();
 }
 
 function redactPII(value) {
@@ -44,19 +40,33 @@ function redactPII(value) {
 
 function scopedText() {
   const selectors = [
+    "main", "form",
     "#main", ".chat-content", "input[type='password']", "input[type='tel']",
     "[role='dialog'][aria-label*='pay' i]", "[role='dialog'][class*='payment' i]",
     ".payment-modal", "#payment-modal"
   ];
   const roots = selectors.flatMap(selector => [...document.querySelectorAll(selector)]);
   const unique = [...new Set(roots)].filter(node => !exempt(node));
-  return unique.map(node => node.value || node.innerText || node.textContent || "")
+  return unique.filter(node => !node.matches("input,textarea,select"))
+    .map(node => node.innerText || node.textContent || "")
     .join("\n").slice(0, 5000);
 }
 
 function getPageSignal() {
   const text = redactPII(scopedText());
+  const forms = [...document.forms];
+  const credential = Boolean(document.querySelector("input[type='password']"));
+  const payment = Boolean(document.querySelector("a[href^='upi://'],.payment-modal,#payment-modal"));
+  const relevantForms = forms.filter(form => form.querySelector("input[type='password'],input[autocomplete='cc-number']"));
+  const insecure = relevantForms.some(form => { try { return new URL(form.action || location.href, location.href).protocol === "http:"; } catch { return false; } });
+  const crossOrigin = relevantForms.some(form => { try { return new URL(form.action || location.href, location.href).origin !== location.origin; } catch { return false; } });
   return {
+    signals: {
+      credential_form: credential, payment_request: payment,
+      coercion: /(?:digital arrest|arrest warrant|pay bail|account will be blocked|गिरफ्तार)/i.test(text),
+      urgent_demand: /(?:pay now|transfer.*immediately|send.*otp|enter.*password|तुरंत.*पैसे)/i.test(text),
+      insecure_form: insecure, cross_origin_form: crossOrigin
+    },
     url_host: location.hostname,
     url_path: location.pathname,
     url: location.href.slice(0, 500),
@@ -70,36 +80,68 @@ function getPageSignal() {
   };
 }
 
+function scopedNodes() {
+  const selectors = [
+    "main", "form",
+    "#main", ".chat-content", "input[type='password']", "input[type='tel']",
+    "[role='dialog'][aria-label*='pay' i]", "[role='dialog'][class*='payment' i]",
+    ".payment-modal", "#payment-modal"
+  ];
+  return [...new Set(selectors.flatMap(selector => [...document.querySelectorAll(selector)]))]
+    .filter(node => !exempt(node));
+}
+
+function bindScopedObservers() {
+  for (const [node, observer] of scopeObservers) {
+    if (!node.isConnected || exempt(node)) {
+      observer.disconnect();
+      scopeObservers.delete(node);
+    }
+  }
+  for (const node of scopedNodes()) {
+    if (scopeObservers.has(node)) continue;
+    const observer = new MutationObserver(scanPage);
+    observer.observe(node, { childList: true, subtree: true, characterData: true, attributes: true });
+    scopeObservers.set(node, observer);
+  }
+}
+
 function scanPage() {
   clearTimeout(scanTimer);
+  if (warningShown) return;
   if (bypassActive()) return;
   if (isSafeZone()) {
     markBypass(true);
-    observer?.disconnect();
+    for (const observer of scopeObservers.values()) observer.disconnect();
+    scopeObservers.clear();
     return;
   }
+  bindScopedObservers();
   try {
     if (Number(sessionStorage.getItem("guardain_circuit_open_until") || 0) > Date.now()) return;
   } catch (_) {}
   scanTimer = setTimeout(() => {
-    if (!bypassActive() && scopedText()) {
+    if (!bypassActive()) {
       chrome.runtime.sendMessage({ type: "PAGE_SIGNAL", payload: getPageSignal() }).catch(() => {});
     }
   }, 500);
 }
 
 scanPage();
-if (document.body) {
-  observer = new MutationObserver(scanPage);
-  observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-}
+// Discover forms inserted after initial page load without scanning input values.
+setInterval(scanPage, 15000);
 
 chrome.runtime.onMessage.addListener(message => {
   if (message?.type === "REQUEST_SCAN") scanPage();
-  if (message?.type === "BLOCK_PAGE") showWarning(message.payload || {});
+  if (message?.type === "BLOCK_PAGE") {
+    showWarning(message.payload || {}).catch(error => {
+      warningShown = false;
+      console.warn("[GuardAIN] warning UI failed:", error);
+    });
+  }
   if (message?.type === "SCAN_RESULT") {
     const verdict = message.payload || {};
-    showBadge(verdict.risk_level === "suspicious" ? "⚠ Suspicious signals" : "✓ Looks safe");
+    if (!isSafeZone()) showBadge(verdict.risk_level === "high_risk" ? "High risk" : verdict.risk_level === "suspicious" ? "Review recommended" : verdict.risk_level === "unknown" ? "Server unavailable — unverified" : "No blocking evidence");
   }
 });
 
@@ -116,28 +158,28 @@ function showBadge(text) {
   badge.textContent = text;
 }
 
-function showWarning(data) {
+async function showWarning(data) {
   if (warningShown || bypassActive()) return;
   warningShown = true;
-  document.querySelectorAll("input, textarea, select, button").forEach(element => {
+  const frozenElements = [...document.querySelectorAll("input, textarea, select, button")];
+  const priorDisabled = new Map(frozenElements.map(element => [element, element.disabled]));
+  frozenElements.forEach(element => {
     element.setAttribute("data-guardain-frozen", "true");
     element.disabled = true;
   });
-  const domSnapshot = document.documentElement.outerHTML.slice(0, 100000);
+  const domSnapshot = JSON.stringify({signals: getPageSignal().signals});
   const telemetry = {
-    url: location.href,
-    clean_url: `${location.origin}${location.pathname}`,
+    url: `${location.origin}/`,
+    clean_url: `${location.origin}/`,
     dom_snapshot: domSnapshot,
     browser: { userAgent: navigator.userAgent, language: navigator.language }
   };
-  (crypto.subtle
-    ? crypto.subtle.digest("SHA-256", new TextEncoder().encode(domSnapshot))
-        .then(buffer => Array.from(new Uint8Array(buffer), byte => byte.toString(16).padStart(2, "0")).join(""))
-    : Promise.resolve(null)
-  ).then(domSignature => chrome.runtime.sendMessage({
-    type: "CAPTURE_SCREENSHOT",
-    telemetry: { ...telemetry, dom_signature: domSignature }
-  })).catch(() => {});
+  // Capture before the warning covers the page. Bound the wait so protection
+  // does not depend on screenshot or network availability.
+  await Promise.race([
+    chrome.runtime.sendMessage({action: 'capture_tab', telemetry}).catch(() => {}),
+    new Promise(resolve => setTimeout(resolve, 1500))
+  ]);
   try { sessionStorage.setItem("guardain_circuit_open_until", String(Date.now() + 8000)); } catch (_) {}
   const overlay = document.createElement("div");
   overlay.id = "guardain-warning";
@@ -159,13 +201,21 @@ function showWarning(data) {
   overlay.appendChild(box);
   document.documentElement.appendChild(overlay);
   let cancelled = false;
-  document.getElementById("guardain-back").onclick = () => { cancelled = true; history.back(); };
+  document.getElementById("guardain-back").onclick = () => { cancelled = true; location.replace("about:blank"); };
   document.getElementById("guardain-proceed").onclick = () => {
     cancelled = true;
+    userBypass = true;
+    chrome.runtime.sendMessage({type: 'CANCEL_WARNING'}).catch(() => {});
     markBypass(true);
+    frozenElements.forEach(element => {
+      if (element.isConnected) {
+        element.disabled = priorDisabled.get(element);
+        element.removeAttribute("data-guardain-frozen");
+      }
+    });
     overlay.remove();
     warningShown = false;
-    observer?.disconnect();
+    for (const observer of scopeObservers.values()) observer.disconnect();
   };
   let seconds = 8;
   const timer = setInterval(() => {

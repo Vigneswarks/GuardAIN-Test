@@ -18,13 +18,19 @@ services:
       postgres: {condition: service_healthy}
     ports: ["8080:8080"]
     environment:
-      REDIS_URL: redis://redis:6379/0
-      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in the environment}
-      ENVIRONMENT: production
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://guardain:guardain@postgres:5432/guardain}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
       PORT: "8080"
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in the environment}
-      GUARDAIN_ADMIN_PASSWORD: ${GUARDAIN_ADMIN_PASSWORD:?Set GUARDAIN_ADMIN_PASSWORD in the environment}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-local-only-jwt-secret-change-before-production}
+      GUARDAIN_ADMIN_USERNAME: ${GUARDAIN_ADMIN_USERNAME:-admin}
+      GUARDAIN_ADMIN_PASSWORD: ${GUARDAIN_ADMIN_PASSWORD:-admin@26}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://127.0.0.1:3000,http://127.0.0.1:3001}
+      GUARDAIN_ALLOW_SYNTHETIC_MODEL: ${GUARDAIN_ALLOW_SYNTHETIC_MODEL:-false}
+      GUARDAIN_ONNX_INTRA_OP_THREADS: ${GUARDAIN_ONNX_INTRA_OP_THREADS:-2}
+      GUARDAIN_ONNX_INTER_OP_THREADS: ${GUARDAIN_ONNX_INTER_OP_THREADS:-1}
     volumes: ["./data:/app/data", "./backend/models:/app/backend/models"]
+    restart: unless-stopped
 volumes:
   redis-data:
   postgres-data:

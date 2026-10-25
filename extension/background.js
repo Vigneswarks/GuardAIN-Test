@@ -2,373 +2,147 @@
 // Local-first fraud detection
 // High-risk warning -> content.js -> 8s countdown -> AUTO_CLOSE_WARNING_TAB
 
-const tier0Cache = new Map();
-const TIER0_TTL_MS = 5 * 60 * 1000;
-
-// ------------------------------------------------------------
-// CACHE
-// ------------------------------------------------------------
-
-function cacheKey(host, path) {
-  return `${host || "<file>"}${path || "/"}`;
-}
-
-// ------------------------------------------------------------
-// OFFLINE DETECTION RULES
-// ------------------------------------------------------------
-
-const OFFLINE_KEYWORD_RULES = [
-  [
-    ["digital arrest", "cbi", "narcotics", "video call", "aadhaar linked"],
-    "digital_arrest",
-    0.93
-  ],
-  [
-    ["guaranteed return", "double your money", "sebi registered", "invest now", "trading tips"],
-    "fake_investment",
-    0.88
-  ],
-  [
-    ["kyc update", "account blocked", "click link", "verify immediately", "suspend", "kyc blocked"],
-    "phishing",
-    0.80
-  ],
-  [
-    ["bill payment overdue", "electricity disconnect", "pay now to avoid"],
-    "bill_scam",
-    0.82
-  ],
-  [
-    ["earn from home", "part time job", "whatsapp group", "task complete payment"],
-    "mule_recruitment",
-    0.76
-  ],
-  [
-    ["power cut", "transfer funds immediately", "digital arrest warrant"],
-    "coercion",
-    0.90
-  ]
-];
-
-// ------------------------------------------------------------
-// TRUSTED HOSTS
-// ------------------------------------------------------------
-
-const OFFLINE_SAFE_HOSTS = [
-  "wikipedia.org",
-  "github.com",
-  "google.com",
-  "microsoft.com",
-  "apple.com",
-  "android.com",
-  "youtube.com",
-  "stackoverflow.com",
-  "gov.in",
-  "whatsapp.com",
-  "telegram.org"
-];
-
-// Exact safe-zone bypass list.  The content script also sets
-// sessionStorage.guardain_bypass_active so these domains incur no DOM scan.
-const GUARDAIN_SAFE_ZONE_HOSTS = [
-  "google.com",
-  "bing.com",
-  "duckduckgo.com",
-  "thehindu.com",
-  "timesofindia.indiatimes.com",
-  "gov.in",
-  "nic.in"
-];
-
-// ------------------------------------------------------------
-// SUSPICIOUS TLDs
-// ------------------------------------------------------------
-
-const SUSPICIOUS_TLDS = [
-  ".xyz",
-  ".top",
-  ".click",
-  ".link",
-  ".icu",
-  ".tk",
-  ".ml",
-  ".ga",
-  ".cf",
-  ".gq",
-  ".zip",
-  ".mov",
-  ".country",
-  ".stream",
-  ".loan",
-  ".gdn",
-  ".rest"
-];
-
-// ------------------------------------------------------------
-// TRUSTED HOST CHECK
-// ------------------------------------------------------------
-
-function hostLooksTrusted(host) {
-  const h = String(host || "")
-    .toLowerCase()
-    .replace(/^www\./, "");
-
-  return OFFLINE_SAFE_HOSTS.some(
-    domain =>
-      h === domain ||
-      h.endsWith(`.${domain}`)
-  );
-}
-
+const DEFAULT_API_BASE = "http://127.0.0.1:8080";
+const SAFE_ZONES = ['google.com', 'google.co.in', 'bing.com', 'duckduckgo.com', 'thehindu.com', 'timesofindia.indiatimes.com', 'gov.in', 'nic.in'];
 function isGuardainSafeZone(host) {
-  const normalized = String(host || "").toLowerCase().replace(/^www\./, "");
-  return GUARDAIN_SAFE_ZONE_HOSTS.some(domain =>
-    normalized === domain || normalized.endsWith(`.${domain}`)
-  );
+  const value = String(host || '').toLowerCase().replace(/\.$/, '');
+  return SAFE_ZONES.some(domain => value === domain || value.endsWith(`.${domain}`));
 }
 
-// ------------------------------------------------------------
-// DOMAIN SIGNALS
-// ------------------------------------------------------------
-
-function domainSignals(host) {
-  const h = String(host || "")
-    .toLowerCase()
-    .replace(/^www\./, "");
-
-  if (!h) {
-    return {
-      score: 0,
-      reasons: []
-    };
-  }
-
-  const reasons = [];
-  let score = 0;
-
-  // Raw IP address
-  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(h)) {
-    score += 0.30;
-    reasons.push("raw_ip_host");
-  }
-
-  // Punycode
-  if (h.includes("xn--")) {
-    score += 0.30;
-    reasons.push("punycode_domain");
-  }
-
-  // Suspicious TLD
-  const dot = h.lastIndexOf(".");
-
-  if (dot >= 0) {
-    const tld = h.slice(dot);
-
-    if (SUSPICIOUS_TLDS.includes(tld)) {
-      score += 0.15;
-      reasons.push(`suspicious_tld_${tld}`);
-    }
-  }
-
-  // Suspicious/high entropy labels
-  const labels = h.split(".");
-
-  const suspiciousLabels = labels.filter(
-    label =>
-      label.length >= 12 &&
-      (
-        /^[a-z0-9]+$/.test(label) ||
-        /\d{3,}/.test(label)
-      )
-  );
-
-  if (suspiciousLabels.length) {
-    score += 0.20;
-    reasons.push("high_entropy_domain");
-  }
-
-  return {
-    score,
-    reasons
+async function reportWarning(message, sender, captured = () => {}) {
+  if (!sender.tab || sender.frameId !== 0) return;
+  let host = '';
+  try { host = new URL(sender.tab.url || '').hostname; } catch (_) { return; }
+  if (isGuardainSafeZone(host)) return;
+  const stored = await chrome.storage.session.get(`verdict:${sender.tab.id}`);
+  const verdict = stored[`verdict:${sender.tab.id}`];
+  if (verdict?.risk_level !== 'high_risk' || verdict.host !== host) return;
+  const payload = {
+    client_report_id: crypto.randomUUID(), url: `https://${host}/`,
+    threat_score: verdict.threat_score, source: 'extension',
+    browser: {evidence_status: 'metadata_only'},
+    dom_snapshot: JSON.stringify({reasons: verdict.reasons})
   };
+  // Chrome captures the visible tab, not an arbitrary tab ID. Check both
+  // sides of capture and discard evidence if focus/navigation changed.
+  try {
+    const [before] = await chrome.tabs.query({active: true, windowId: sender.tab.windowId});
+    if (before?.id !== sender.tab.id || before.url !== sender.tab.url) throw new Error('Tab not visible');
+    const dataUrl = await chrome.tabs.captureVisibleTab(sender.tab.windowId, {format: 'png'});
+    const [after] = await chrome.tabs.query({active: true, windowId: sender.tab.windowId});
+    if (after?.id !== sender.tab.id || after.url !== sender.tab.url) throw new Error('Tab changed');
+    if (dataUrl.length > 3500000) throw new Error('Screenshot exceeds local queue budget');
+    const bytes = Uint8Array.from(atob(dataUrl.split(',')[1]), c => c.charCodeAt(0));
+    payload.screenshot_base64 = dataUrl;
+    payload.screenshot_hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), b => b.toString(16).padStart(2, '0')).join('');
+    payload.browser.evidence_status = 'visible_tab_screenshot';
+  } catch (error) { payload.browser.evidence_status = `screenshot_unavailable: ${error.message}`; }
+  captured({captured: Boolean(payload.screenshot_base64)});
+  const base = await apiBase();
+  const key = `pending-report:${payload.client_report_id}`;
+  const all = await chrome.storage.local.get(null);
+  if (Object.keys(all).filter(k => k.startsWith('pending-report:')).length >= 2) {
+    // Preserve an incident even when the evidence queue is full.
+    delete payload.screenshot_base64;
+    delete payload.screenshot_hash;
+    payload.browser.evidence_status = 'screenshot_omitted_queue_capacity';
+  }
+  if (Object.keys(all).filter(k => k.startsWith('pending-report:')).length >= 50) {
+    await chrome.storage.local.set({guardainReportStatus: 'Report queue full; connect to central server'});
+    return;
+  }
+  await chrome.storage.local.set({[key]: {base, payload}, guardainReportStatus: 'Report queued'});
+  await flushReports();
 }
 
-// ------------------------------------------------------------
-// LOCAL CLASSIFIER
-// ------------------------------------------------------------
-
-function offlineClassify(signal = {}) {
-
-  const host = String(
-    signal.url_host || ""
-  ).toLowerCase();
-
-  const path = String(
-    signal.url_path || ""
-  ).toLowerCase();
-
-  const title = String(
-    signal.title || ""
-  ).toLowerCase();
-
-  const text = String(
-    signal.text_sample || ""
-  ).toLowerCase();
-
-  const url = String(
-    signal.url || ""
-  );
-
-  if (isGuardainSafeZone(host)) {
-    return {
-      risk_level: "safe",
-      threat_score: 0,
-      reasons: ["safe_zone_bypass"],
-      tier: "safe_zone_bypass",
-      host
-    };
-  }
-
-  const haystack =
-    `${title}\n${path}\n${text}`;
-
-  // Trusted domains
-  if (
-    host &&
-    hostLooksTrusted(host)
-  ) {
-    return {
-      risk_level: "safe",
-      threat_score: 0.02,
-      reasons: [],
-      tier: "offline_heuristic",
-      host
-    };
-  }
-
-  let score = 0;
-  const reasons = [];
-
-  // Keyword rules
-  for (
-    const [keywords, label, baseScore]
-    of OFFLINE_KEYWORD_RULES
-  ) {
-
-    const hits =
-      keywords.filter(
-        keyword =>
-          haystack.includes(keyword)
-      ).length;
-
-    if (hits > 0) {
-
-      const contribution =
-        Math.min(
-          baseScore,
-          baseScore *
-          (0.65 + hits * 0.18)
-        );
-
-      score =
-        Math.max(
-          score,
-          contribution
-        );
-
-      if (!reasons.includes(label)) {
-        reasons.push(label);
+let flushing = false;
+async function flushReports() {
+  if (flushing) return;
+  flushing = true;
+  try {
+    const items = await chrome.storage.local.get(null);
+    for (const [key, item] of Object.entries(items)) {
+      if (!key.startsWith('pending-report:')) continue;
+      if (isGuardainSafeZone(new URL(item.payload.url).hostname)) {
+        await chrome.storage.local.remove(key);
+        continue;
+      }
+      try {
+        const response = await fetch(`${item.base}/v1/telemetry`, {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(item.payload), signal: AbortSignal.timeout(8000)
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        await chrome.storage.local.remove(key);
+        await chrome.storage.local.set({guardainReportStatus: 'Report delivered'});
+      } catch (error) {
+        await chrome.storage.local.set({guardainReportStatus: `Queued for retry: ${error.message}`});
       }
     }
+  } finally { flushing = false; }
+}
+chrome.alarms.create('guardain-report-retry', {periodInMinutes: 1});
+chrome.alarms.onAlarm.addListener(alarm => { if (alarm.name === 'guardain-report-retry') flushReports(); });
+
+async function apiBase() {
+  const stored = await chrome.storage.local.get({ guardainApiBaseUrl: DEFAULT_API_BASE });
+  return String(stored.guardainApiBaseUrl || DEFAULT_API_BASE).replace(/\/+$/, "");
+}
+
+
+function offlineClassify(signal = {}) {
+  // Offline protection is deliberately structural, not keyword-only. This
+  // mirrors the server policy so an unreachable API cannot disable safety on
+  // a coercive page with a credential/payment collection form and unsafe form
+  // destination. All other pages remain unverified rather than blocked.
+  const facts = signal.signals || {};
+  const collection = Boolean(facts.credential_form || facts.payment_request);
+  const coercion = Boolean(facts.coercion && facts.urgent_demand);
+  const unsafeDestination = Boolean(facts.insecure_form || facts.cross_origin_form);
+  if (collection && coercion && unsafeDestination) {
+    return {
+      risk_level: "high_risk", threat_score: 0.92,
+      reasons: ["coercive_demand", "collection_form", "unsafe_form_destination"],
+      tier: "local-corroborated-policy", host: signal.url_host || ""
+    };
   }
-
-  // Domain signals
-  const ds =
-    domainSignals(host);
-
-  score =
-    Math.min(
-      1,
-      score + ds.score
-    );
-
-  for (const reason of ds.reasons) {
-    if (!reasons.includes(reason)) {
-      reasons.push(reason);
-    }
+  if (collection && (coercion || unsafeDestination)) {
+    return {
+      risk_level: "suspicious", threat_score: 0.6, reasons: ["corroborated_warning"],
+      tier: "local-corroborated-policy", host: signal.url_host || ""
+    };
   }
+  return {risk_level: "unknown", threat_score: 0, reasons: ["insufficient_blocking_evidence"], tier: "awaiting_central_policy", host: signal.url_host || ""};
+}
 
-  // HTTP + credential/payment page
-  if (
-    /^http:\/\//i.test(url) &&
-    /(login|signin|password|otp|kyc|payment)/i.test(haystack)
-  ) {
-    score =
-      Math.min(
-        1,
-        score + 0.25
-      );
-
-    reasons.push(
-      "http_credential_or_payment"
-    );
+async function cloudClassify(signal, localVerdict) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 4500);
+  try {
+    const base = await apiBase();
+    const host = String(signal.url_host || "").toLowerCase();
+    const response = await fetch(`${base}/v1/page-check`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        domain: host,
+        signals: signal.signals || {}
+      }),
+      signal: controller.signal
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const result = await response.json();
+    const score = Number(result.threat_score ?? result.score ?? 0);
+    return {
+      risk_level: result.action === "BLOCK" ? "high_risk" : result.action === "REVIEW" ? "suspicious" : "safe",
+      threat_score: score,
+      reasons: result.reasons || [],
+      tier: result.engine || "central_muril",
+      host
+    };
+  } finally {
+    clearTimeout(timeout);
   }
-
-  // UPI
-  if (
-    (signal.upi_links || []).length > 0 ||
-    /upi:\/\/pay\b/i.test(text)
-  ) {
-    score =
-      Math.min(
-        1,
-        score + 0.20
-      );
-
-    reasons.push(
-      "upi_payment_link"
-    );
-  }
-
-  // Credential collection
-  if (
-    /(password|passwd|otp|pin|cvv|card number|bank account|upi id)/i
-      .test(haystack)
-  ) {
-    score =
-      Math.min(
-        1,
-        score + 0.15
-      );
-
-    reasons.push(
-      "credential_collection"
-    );
-  }
-
-  // Normalize
-  score =
-    Math.round(
-      Math.min(score, 1) * 100
-    ) / 100;
-
-  let risk_level = "safe";
-
-  if (score >= 0.85) {
-    risk_level = "high_risk";
-  } else if (score >= 0.50) {
-    risk_level = "suspicious";
-  } else {
-    score = 0.05;
-  }
-
-  return {
-    risk_level,
-    threat_score: score,
-    reasons: [...new Set(reasons)],
-    tier: "offline_heuristic",
-    host
-  };
 }
 
 // ------------------------------------------------------------
@@ -380,7 +154,11 @@ async function scanSignal(
   tabId
 ) {
 
-  if (!signal || tabId == null) {
+  if (!signal || tabId == null || !signal.url_host) {
+    return;
+  }
+  if (isGuardainSafeZone(signal.url_host)) {
+    await applyVerdict({risk_level: "safe", threat_score: 0, reasons: ["safe_zone_bypass"], tier: "safe_zone_bypass", host: signal.url_host}, tabId);
     return;
   }
 
@@ -393,12 +171,12 @@ async function scanSignal(
   // Local detection disabled
   if (!heuristic_enabled) {
 
-    applyVerdict(
+    await applyVerdict(
       {
-        risk_level: "safe",
+        risk_level: "unknown",
         threat_score: 0,
         reasons: [
-          "local_heuristic_disabled"
+          "page_protection_disabled"
         ],
         tier: "offline_disabled",
         host: signal.url_host || ""
@@ -409,43 +187,26 @@ async function scanSignal(
     return;
   }
 
-  // Cache
-  const key =
-    cacheKey(
-      signal.url_host,
-      signal.url_path
-    );
 
-  const cached =
-    tier0Cache.get(key);
-
-  if (
-    cached &&
-    Date.now() - cached.ts <
-      TIER0_TTL_MS
-  ) {
-
-    applyVerdict(
-      cached.verdict,
-      tabId
-    );
-
-    return;
+  // Central verification receives only the hostname and local risk labels;
+  // paths, query strings, and arbitrary private page text stay on-device.
+  const localVerdict = offlineClassify(signal);
+  let verdict = localVerdict;
+  try {
+    const cloudVerdict = await cloudClassify(signal, localVerdict);
+    verdict = cloudVerdict;
+  } catch (error) {
+    verdict = {...localVerdict, tier: `${localVerdict.tier}+cloud_unavailable`};
+    console.warn("[GuardAIN] central verification unavailable:", error);
   }
+  verdict.documentUrl = signal.url;
+  try {
+    const currentTab = await chrome.tabs.get(tabId);
+    if (currentTab.url !== signal.url) return;
+  } catch (_) { return; }
 
-  // Local classification
-  const verdict =
-    offlineClassify(signal);
 
-  tier0Cache.set(
-    key,
-    {
-      verdict,
-      ts: Date.now()
-    }
-  );
-
-  applyVerdict(
+  await applyVerdict(
     verdict,
     tabId
   );
@@ -455,7 +216,7 @@ async function scanSignal(
 // APPLY VERDICT
 // ------------------------------------------------------------
 
-function applyVerdict(
+async function applyVerdict(
   verdict,
   tabId
 ) {
@@ -502,17 +263,19 @@ function applyVerdict(
     .catch(() => {});
 
   // Store verdict
-  chrome.storage.session
-    .set({
+  try {
+    // Persist before notifying content.js. The immediate report/capture path
+    // reads this same verdict to prevent unverified screenshots and closures.
+    await chrome.storage.session.set({
       [`verdict:${tabId}`]: {
         ...verdict,
         scannedAt: Date.now()
       }
-    })
-    .catch(() => {});
+    });
+  } catch (_) { return; }
 
   // Send scan result
-  chrome.tabs
+  await chrome.tabs
     .sendMessage(
       tabId,
       {
@@ -529,6 +292,8 @@ function applyVerdict(
   // ----------------------------------------------------------
 
   if (risk === "high_risk") {
+
+    chrome.tabs.update(tabId, { muted: true }).catch(() => {});
 
     const reasons =
       (verdict.reasons || [])
@@ -579,32 +344,18 @@ function applyVerdict(
 // ------------------------------------------------------------
 
 chrome.runtime.onMessage.addListener(
-  (message, sender) => {
-    if (message?.type === "CAPTURE_SCREENSHOT") {
-      const tabId = sender.tab?.id ?? message.tabId;
-      if (tabId == null) return false;
-      chrome.tabs.captureVisibleTab(sender.tab?.windowId, {format: "png", quality: 100})
-        .then(async dataUrl => {
-          const telemetry = message.telemetry || {};
-          const payload = {
-            url: telemetry.url || "",
-            clean_url: telemetry.clean_url || null,
-            screenshot_base64: dataUrl,
-            dom_snapshot: telemetry.dom_snapshot || null,
-            dom_signature: telemetry.dom_signature || null,
-            browser: telemetry.browser || {},
-            threat_score: Number(message.threat_score || 0.85),
-            source: "extension"
-          };
-          await fetch("http://127.0.0.1:8080/v1/report/incident", {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify(payload)
-          });
-          await chrome.tabs.sendMessage(tabId, {type: "SCREENSHOT_CAPTURED", dataUrl});
-        })
-        .catch(error => console.warn("[GuardAIN] screenshot capture failed:", error));
+  (message, sender, sendResponse) => {
+    if (message?.type === 'CANCEL_WARNING' && sender.tab) {
+      chrome.storage.session.remove(`verdict:${sender.tab.id}`);
+      chrome.tabs.update(sender.tab.id, {muted: false}).catch(() => {});
       return false;
+    }
+    if (message?.action === "capture_tab") {
+      reportWarning(message, sender, sendResponse).catch(error => {
+        console.warn('[GuardAIN] report failed:', error);
+        sendResponse({captured: false});
+      });
+      return true;
     }
 
     // Page scan
@@ -621,7 +372,7 @@ chrome.runtime.onMessage.addListener(
       }
 
       scanSignal(
-        message.payload,
+        {...message.payload, url: sender.tab.url, url_host: new URL(sender.tab.url).hostname},
         tabId
       ).catch(error => {
         console.warn(
@@ -646,15 +397,17 @@ chrome.runtime.onMessage.addListener(
         sender.tab?.id;
 
       if (tabId != null) {
-
-        chrome.tabs
-          .remove(tabId)
-          .catch(error => {
-            console.warn(
-              "[GuardAIN] Could not close tab:",
-              error
-            );
-          });
+        chrome.storage.session.get(`verdict:${tabId}`).then(async stored => {
+          const verdict = stored[`verdict:${tabId}`];
+          const tab = await chrome.tabs.get(tabId);
+          const host = new URL(tab.url).hostname;
+          if (verdict?.risk_level === "high_risk" && verdict.host === host &&
+              verdict.documentUrl === tab.url &&
+              !isGuardainSafeZone(host) && Date.now() - verdict.scannedAt >= 7500 &&
+              Date.now() - verdict.scannedAt < 60000 && tab.url === sender.tab.url) {
+            await chrome.tabs.remove(tabId);
+          }
+        }).catch(console.warn);
       }
 
       return false;
@@ -716,9 +469,6 @@ chrome.webNavigation.onCommitted.addListener(
 chrome.tabs.onRemoved.addListener(
   tabId => {
 
-    tier0Cache.delete(
-      `tab:${tabId}`
-    );
 
     chrome.storage.session
       .remove(
