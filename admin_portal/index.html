@@ -450,7 +450,9 @@
       const configured = window.GUARDAIN_API_URL || sessionStorage.getItem('guardainApiUrl');
       if (configured) return configured.replace(/\/+$/, '');
       if (['localhost', '127.0.0.1'].includes(window.location.hostname)) return window.location.origin;
-      return '';
+      // Public endpoint only—no credentials or database secret are embedded
+      // in the static Vercel client.
+      return 'https://guardain-api.onrender.com';
     };
     let token = sessionStorage.getItem('guardainAdminToken') || '';
     let currentIncidents = [];

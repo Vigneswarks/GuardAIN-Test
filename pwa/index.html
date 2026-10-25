@@ -111,7 +111,10 @@
          same route is served by FastAPI. Local file use simply falls back. -->
     <script src="/config.js"></script>
     <script>
-      const API_BASE = (window.GUARDAIN_API_URL || localStorage.getItem('guardainApiUrl') || window.location.origin).replace(/\/+$/, '');
+      // This is a public API address, not a secret. It keeps the Vercel PWA
+      // operational even if a static-host configuration file is unavailable.
+      const PUBLIC_CENTRAL_API = 'https://guardain-api.onrender.com';
+      const API_BASE = (window.GUARDAIN_API_URL || localStorage.getItem('guardainApiUrl') || PUBLIC_CENTRAL_API).replace(/\/+$/, '');
       const API_URL = `${API_BASE}/v1/verify`;
 
       function scrubPII(value) {
